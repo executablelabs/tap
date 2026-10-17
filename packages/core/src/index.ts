@@ -5,6 +5,7 @@ export {
   ENS_PARENT,
   getPaymentChain,
   PAYMENT_CHAIN_ID,
+  PILOT_ACCOUNT_STACK,
 } from "./config/chains";
 export { configureTap } from "./config/clients";
 export { REQUEST_TTL_SECONDS } from "./config/constants";
@@ -18,6 +19,7 @@ export {
 export { formatAmount, formatTokenUnits, parseAmountInput } from "./format";
 export { isPaid, pay, payWithPermit, waitForPayment } from "./payment/pay";
 export { signPermit } from "./payment/permit";
+export { assertPilotPayment, encodePilotPayment, pilotPaymentCalls } from "./payment/pilot-calls";
 export { payWithSwap, quoteSwap } from "./payment/swap";
 export { watchPaid } from "./payment/watch";
 export { newChargeRequest } from "./request/create";
@@ -50,3 +52,5 @@ export {
 } from "./verify/ens";
 export { verifyRequest } from "./verify/verify-request";
 export { getWalletBalances } from "./wallet/balances";
+export type { PilotAccount } from "./wallet/pilot-account";
+export { getPilotAccount } from "./wallet/pilot-account";

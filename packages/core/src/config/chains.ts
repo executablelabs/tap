@@ -5,6 +5,16 @@ export const PAYMENT_CHAIN_ID = 84532 as const;
 export const ENS_CHAIN_ID = 11155111 as const;
 export const ENS_PARENT = "tap.eth";
 
+// Offline pilot candidate from the viem 2.56.9 Coinbase Smart Wallet 1.1 adapter.
+// These identities do not enable sponsorship or attest deployed code/provider compatibility.
+export const PILOT_ACCOUNT_STACK = {
+  chainId: PAYMENT_CHAIN_ID,
+  version: "1.1",
+  entryPointVersion: "0.6",
+  entryPoint: "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789" as Address,
+  factory: "0xba5ed110efdba3d005bfc882d75358acbbb85842" as Address,
+} as const;
+
 export const paymentChains = {
   [PAYMENT_CHAIN_ID]: {
     chain: baseSepolia,

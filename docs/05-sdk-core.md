@@ -37,6 +37,17 @@ packages/core/
 ```
 One job per file. If a file needs a second job, it gets a second file.
 
+### Disabled sponsorship pilot (D36)
+Additive exports `getPilotAccount(owner)`, `PilotAccount`, `PILOT_ACCOUNT_STACK`,
+`pilotPaymentCalls`, `encodePilotPayment`, and `assertPilotPayment` select the pinned
+Coinbase Smart Wallet 1.1 / EntryPoint 0.6 candidate on Base Sepolia only. Account
+derivation is read-only, with one root EOA owner and factory nonce zero. The pilot
+batch contains exactly USDC approval to canonical TapPay and the original `pay`
+call, both zero value. Validation checks every call and canonical wrapper bytes.
+These primitives neither authorize spending nor enable a provider. Live code,
+provider, storage, budget and recovery approval remain gates; no teammate approval
+is asserted by D36. Existing settlement APIs and merchant wire format are unchanged.
+
 ## Types 🔒 (`src/types.ts`)
 ```ts
 import type { Address, Hash, Hex, LocalAccount, PublicClient } from "viem";
