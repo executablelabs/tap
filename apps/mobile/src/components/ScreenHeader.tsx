@@ -1,20 +1,32 @@
 import { Link, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { copy } from "../copy";
+import { backOrHome } from "../entry-state";
 import { theme } from "../theme";
 
-export function ScreenHeader({ label, value }: { label: string; value: string }) {
+export function ScreenHeader({
+  label,
+  value,
+  showBack = true,
+}: {
+  label: string;
+  value: string;
+  showBack?: boolean;
+}) {
   const router = useRouter();
 
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        hitSlop={12}
-        onPress={() => router.back()}
-      >
-        <Text style={styles.back}>←</Text>
-      </Pressable>
+      {showBack ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.entry.back}
+          hitSlop={12}
+          onPress={() => backOrHome(router)}
+        >
+          <Text style={styles.back}>←</Text>
+        </Pressable>
+      ) : null}
       <View style={styles.identity}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.value} numberOfLines={1}>

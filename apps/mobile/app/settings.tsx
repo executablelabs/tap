@@ -1,16 +1,9 @@
-import type { WalletBalances } from "@tap/core";
-import {
-  DEFAULT_TOKEN,
-  ENS_CHAIN_ID,
-  getPaymentChain,
-  getWalletBalances,
-  PAYMENT_CHAIN_ID,
-} from "@tap/core";
+import { ENS_CHAIN_ID, getPaymentChain, PAYMENT_CHAIN_ID } from "@tap/core";
 import type { TamperField } from "@tap/core/testing";
 import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Alert,
   Pressable,
@@ -21,14 +14,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { BalanceRow } from "../src/components/BalanceRow";
+import { copy } from "../src/copy";
+import { backOrHome } from "../src/entry-state";
 import { useSettings } from "../src/settings-store";
 import { theme } from "../src/theme";
 import { useWallet } from "../src/wallet/WalletProvider";
-
-const FAKE_BALANCES: WalletBalances = {
-  gas: { symbol: "ETH", amount: 50_000_000_000_000_000n, display: "0.05" },
-  tokens: [{ address: DEFAULT_TOKEN, symbol: "USDC", amount: 12_000_000n, display: "$12.00" }],
-};
 
 const TAMPER_FIELDS: TamperField[] = ["m", "n", "t", "a", "x", "k", "c"];
 
@@ -43,55 +34,21 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { address, isLoading, resetWallet } = useWallet();
+  const { address, isLoading, error, resetWallet } = useWallet();
   const [settings, setSettings] = useSettings();
-  const [balances, setBalances] = useState<WalletBalances | null>(null);
-  const [balancesUnavailable, setBalancesUnavailable] = useState(false);
-
-  useEffect(() => {
-    if (!address) return;
-
-    if (settings.fakeChain) {
-      setBalances(FAKE_BALANCES);
-      setBalancesUnavailable(false);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const next = await getWalletBalances(address);
-        if (cancelled) return;
-        setBalances(next);
-        setBalancesUnavailable(false);
-      } catch {
-        if (cancelled) return;
-        setBalances(null);
-        setBalancesUnavailable(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [address, settings.fakeChain]);
 
   function confirmResetWallet() {
-    Alert.alert(
-      "Reset wallet?",
-      "This permanently deletes this device's key and creates a new one. Registered merchant names and funds stay linked to the old wallet and cannot be recovered here.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Reset", style: "destructive", onPress: () => void resetWallet() },
-      ],
-    );
+    Alert.alert("Reset wallet?", copy.entry.resetWalletWarning, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Reset", style: "destructive", onPress: () => void resetWallet() },
+    ]);
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <View style={styles.screenHeader}>
         <Text style={styles.screenTitle}>Settings</Text>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => backOrHome(router)}>
           <Text style={styles.close}>Close</Text>
         </Pressable>
       </View>
@@ -107,22 +64,16 @@ export default function SettingsScreen() {
         >
           <Text style={styles.secondaryButtonText}>Copy address</Text>
         </Pressable>
-        {balances ? (
-          <Text style={styles.value}>
-            {balances.tokens.map((token) => `${token.symbol} ${token.display}`).join(" · ")}
-            {` · Gas ${balances.gas.display} ${balances.gas.symbol}`}
+        {address ? <BalanceRow key={address} address={address} /> : null}
+        {error ? (
+          <Text accessibilityRole="alert" style={styles.muted}>
+            {copy.entry.resetWalletFailed}
           </Text>
-        ) : (
-          <Text style={styles.muted}>
-            {balancesUnavailable ? "Balances unavailable" : "Loading balances…"}
-          </Text>
-        )}
-        <Pressable style={styles.destructiveButton} onPress={confirmResetWallet}>
-          <Text style={styles.destructiveButtonText}>Reset wallet</Text>
-        </Pressable>
+        ) : null}
       </Section>
 
       <Section title="Merchant">
+        <Text style={styles.muted}>{copy.entry.merchantDetail}</Text>
         <TextInput
           style={styles.input}
           value={settings.merchantName}
@@ -161,50 +112,65 @@ export default function SettingsScreen() {
         </View>
       </Section>
 
-      <Section title="Demo">
-        <Text style={styles.muted}>
-          Serves a tampered tag so the customer phone shows "Unverified merchant". For the failure
-          demo only.
-        </Text>
-        <View style={styles.row}>
-          <Pressable
-            style={[styles.segment, settings.demoTamper === null && styles.segmentActive]}
-            onPress={() => setSettings({ demoTamper: null })}
-          >
-            <Text
-              style={[styles.segmentText, settings.demoTamper === null && styles.segmentTextActive]}
-            >
-              Off
-            </Text>
-          </Pressable>
-          {TAMPER_FIELDS.map((field) => (
+      {__DEV__ ? (
+        <>
+          <Section title={copy.entry.developmentTools}>
+            <Text style={styles.muted}>{copy.entry.developmentWarning}</Text>
             <Pressable
-              key={field}
-              style={[styles.segment, settings.demoTamper === field && styles.segmentActive]}
-              onPress={() => setSettings({ demoTamper: field })}
+              style={styles.destructiveButton}
+              disabled={isLoading}
+              onPress={confirmResetWallet}
             >
-              <Text
-                style={[
-                  styles.segmentText,
-                  settings.demoTamper === field && styles.segmentTextActive,
-                ]}
-              >
-                {field}
-              </Text>
+              <Text style={styles.destructiveButtonText}>{copy.entry.resetWallet}</Text>
             </Pressable>
-          ))}
-        </View>
-      </Section>
+            <Text style={styles.muted}>
+              Serves a tampered tag so the customer phone shows "Unverified merchant". For the
+              failure demo only.
+            </Text>
+            <View style={styles.row}>
+              <Pressable
+                style={[styles.segment, settings.demoTamper === null && styles.segmentActive]}
+                onPress={() => setSettings({ demoTamper: null })}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    settings.demoTamper === null && styles.segmentTextActive,
+                  ]}
+                >
+                  Off
+                </Text>
+              </Pressable>
+              {TAMPER_FIELDS.map((field) => (
+                <Pressable
+                  key={field}
+                  style={[styles.segment, settings.demoTamper === field && styles.segmentActive]}
+                  onPress={() => setSettings({ demoTamper: field })}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      settings.demoTamper === field && styles.segmentTextActive,
+                    ]}
+                  >
+                    {field}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Section>
 
-      <Section title="Developer">
-        <View style={styles.switchRow}>
-          <Text style={styles.value}>Offline fake chain</Text>
-          <Switch
-            value={settings.fakeChain}
-            onValueChange={(fakeChain) => setSettings({ fakeChain })}
-          />
-        </View>
-      </Section>
+          <Section title="Developer">
+            <View style={styles.switchRow}>
+              <Text style={styles.value}>Offline fake chain</Text>
+              <Switch
+                value={settings.fakeChain}
+                onValueChange={(fakeChain) => setSettings({ fakeChain })}
+              />
+            </View>
+          </Section>
+        </>
+      ) : null}
 
       <Section title="About">
         <Text style={styles.muted}>Version {Constants.expoConfig?.version ?? "unknown"}</Text>

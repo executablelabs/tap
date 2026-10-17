@@ -118,11 +118,10 @@ Driven by `useTapToPay` state:
 The Pay button is rendered **only** when `state === "verified" && verify.ok` (INV-17). There is no other code path to `confirm()`.
 
 ### `settings`
-- **Wallet:** full address (copy button), balances, "Reset wallet" (demo, confirm dialog).
+- **Wallet:** full address (copy button), balances with refresh; header Back and Settings Close fall back to home on a direct launch.
 - **Merchant:** ENS name field (default `yoyogi-market.tap.eth`) plus a self-service registration entry point. Manual name editing remains available.
 - **Transport:** NFC / QR toggle.
-- **Demo:** "Serve tampered tag" (field picker m/n/t/a/x/k/c; default off), with a warning that it's for the failure demo.
-- **Developer:** "Offline fake chain" (default off; uses `createFakeCore()` so screens work before the chain code lands). A visible "FAKE CHAIN" chip appears on every screen while it's on. Removed from the UI before recording the demo.
+- **Development only (`__DEV__`):** wallet replacement, tampered-tag fields m/n/t/a/x/k/c (default off), and "Offline fake chain" (default off; `createFakeCore()`). Copy states that simulated balances, verification and payment results are not real evidence. Release Settings hides these helpers; physical tamper smoke requires a development build.
 - **About:** app version, chain IDs, TapPay address (read from core, display only).
 
 ## Copy (`src/copy.ts`): every user-facing string lives here

@@ -1,7 +1,9 @@
 import type { Address, WalletBalances } from "@tap/core";
 import { DEFAULT_TOKEN, getWalletBalances } from "@tap/core";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { copy } from "../copy";
 import { faucetUrls, openFaucet } from "../faucets";
 import { useSettings } from "../settings-store";
 import { theme } from "../theme";
@@ -13,34 +15,40 @@ const FAKE_BALANCES: WalletBalances = {
 
 export function BalanceRow({ address }: { address: Address }) {
   const [settings] = useSettings();
-  const [balances, setBalances] = useState<WalletBalances | null>(null);
+  const [result, setResult] = useState<{ value: WalletBalances; refresh: number } | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const balances = result?.refresh === refresh ? result.value : null;
 
-  useEffect(() => {
-    if (settings.fakeChain) {
-      setBalances(FAKE_BALANCES);
+  useFocusEffect(
+    useCallback(() => {
+      setResult(null);
       setUnavailable(false);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const next = await getWalletBalances(address);
-        if (cancelled) return;
-        setBalances(next);
+      if (settings.fakeChain) {
+        setResult({ value: FAKE_BALANCES, refresh });
         setUnavailable(false);
-      } catch {
-        if (cancelled) return;
-        setBalances(null);
-        setUnavailable(true);
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [address, settings.fakeChain]);
+      let cancelled = false;
+      (async () => {
+        try {
+          const next = await getWalletBalances(address);
+          if (cancelled) return;
+          setResult({ value: next, refresh });
+          setUnavailable(false);
+        } catch {
+          if (cancelled) return;
+          setResult(null);
+          setUnavailable(true);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [address, settings.fakeChain, refresh]),
+  );
 
   if (!balances) {
     return (
@@ -48,6 +56,11 @@ export function BalanceRow({ address }: { address: Address }) {
         <Text style={styles.muted}>
           {unavailable ? "Balances unavailable" : "Loading balances…"}
         </Text>
+        {unavailable ? (
+          <Pressable accessibilityRole="button" onPress={() => setRefresh((value) => value + 1)}>
+            <Text style={styles.fundingLink}>{copy.entry.balanceRetry}</Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }
@@ -103,6 +116,9 @@ export function BalanceRow({ address }: { address: Address }) {
       {needsGas || needsUsdc ? (
         <Text style={styles.faucetHint}>Your wallet address is copied when a faucet opens.</Text>
       ) : null}
+      <Pressable accessibilityRole="button" onPress={() => setRefresh((value) => value + 1)}>
+        <Text style={styles.fundingLink}>{copy.entry.balanceRetry}</Text>
+      </Pressable>
     </View>
   );
 }

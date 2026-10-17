@@ -96,6 +96,57 @@ const labels = {
   yourWallet: "Your wallet",
 } as const;
 
+const entry = {
+  loading: "Opening your wallet…",
+  walletError: "Couldn't open your wallet",
+  walletRecovery: "Unlock your device and try again. Your stored wallet has not been replaced.",
+  preferencesError: "Couldn't load your preferences",
+  preferencesRecovery:
+    "Try again, or reset only preferences to repeat setup. Your wallet stays on this device.",
+  resetPreferences: "Reset preferences only",
+  saveError: "Couldn't save your preferences. Try again before leaving the app.",
+  retry: "Try again",
+  welcome: "Welcome to Tap",
+  introduction: "Review who you're paying before you confirm.",
+  testnet: "Testnet only · Base Sepolia",
+  deviceWallet:
+    "Tap creates a wallet on this device, stored in secure storage. There is no sign-in or cloud recovery. Losing the app's stored key loses access to its funds and names.",
+  verification:
+    "Payment requests are checked against the merchant's signature and ENS name. Opening Tap never starts a scan or sends a payment.",
+  preference: "Preferred payment method",
+  nfc: "NFC tap",
+  qr: "QR code",
+  continue: "Open my wallet",
+  saving: "Saving…",
+  home: "Tap",
+  ready: "Pay with confidence",
+  homeDetail:
+    "Start a scan when you're ready. You'll review the verified merchant and amount before paying.",
+  scan: "Start a payment",
+  merchant: "Merchant tools",
+  merchantDetail:
+    "Create payment requests or register a merchant name with this device wallet. A saved name alone does not verify a merchant.",
+  settings: "Settings",
+  back: "Back",
+  done: "Back to home",
+  fakeChain: "DEVELOPMENT ONLY · FAKE CHAIN",
+  developmentTools: "Development only",
+  developmentWarning:
+    "Test helpers can simulate balances, verification and payment results. They do not prove a real payment or merchant identity.",
+  resetWallet: "Replace development wallet",
+  resetWalletWarning:
+    "This replaces this device's stored key. Registered merchant names and funds stay linked to the old wallet and cannot be recovered here. There is no cloud backup.",
+  resetWalletFailed: "Couldn't replace the wallet. The previous wallet is still available.",
+  balanceRetry: "Refresh balances",
+} as const;
+
 const scan = { start: "Read NFC request", cancel: "Cancel NFC scan", qr: "Scan QR code" } as const;
 
-export const copy = { errorMessages, getErrorMessage, ensVerifiedLabel, labels, scan } as const;
+export const copy = {
+  errorMessages,
+  getErrorMessage,
+  ensVerifiedLabel,
+  labels,
+  entry,
+  scan,
+} as const;
