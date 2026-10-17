@@ -170,6 +170,13 @@ The merchant phone serves a signed URL using Android HCE. The customer phone rea
 reader mode. QR transport exercises the same signed payload and verification path when NFC is
 unavailable.
 
+The current app source opens a customer wallet home after first-run setup, with explicit scan
+actions and a secondary **Merchant tools** entry. Wallet keys and onboarding/preferences use
+device secure storage; there is no login or cloud recovery. Payments remain testnet-only.
+Development builds visibly label fake-chain/tamper helpers; those controls are unavailable in
+release builds. See [mobile behavior and device acceptance](docs/07-mobile-app.md). Existing
+downloadable APKs do not acquire these source changes until a new build is published.
+
 The downloadable `v0.0.1` APK is a signed EAS build for package `xyz.tap.demo`; its archive and
 configuration checks passed, and its SHA-256 digest is
 `983f1edf9b2c800ce53c54cbfb20e50083653a4bff7b56f47cc445dbdcaaea2e`. NFC transport was

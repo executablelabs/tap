@@ -15,15 +15,16 @@ ETH." Keep USDC as the fallback path for the protected baseline demo.
 
 | Step | Merchant phone | Customer phone | Say |
 |---|---|---|---|
-| 0 | Settings: setup banner ✓ | Balance visible | "Two ordinary Android phones." |
-| 1 | Enter 5 → Charge | Ready to tap | "The vendor signs a payment request and broadcasts it over NFC." |
+| 0 | Home → Merchant tools: live setup check ✓ | Complete first-run setup; home balance visible | "Two ordinary Android phones." |
+| 1 | Enter 5 → Charge | Start a payment → Read NFC request | "The vendor signs a payment request and broadcasts it over NFC." |
 | 2 | Waiting | Tap → verified card | "Before paying, the wallet checks ENS: who signed it, which name, is it under tap.eth." |
 | 3 | — | Pay | "One transaction on Base, with a USDC permit." |
 | 4 | Green ✓ | Green ✓ | "The vendor saw the onchain Paid event for this exact request." |
-| 5 | Settings → tamper amount → new charge | Tap → Unverified | "Change one byte and it's blocked." |
+| 5 | Development-only Settings → tamper amount → new charge | Home → Start a payment → Read NFC request → Tap → Unverified | "Change one byte and it's blocked." |
 | 6 | — | — | Show the README ENS table / registrar code if they want depth |
 
 Checklist before every run: both phones charged and unlocked, NFC on, keep-awake on, **fake chain OFF, tamper OFF**, customer funded, `bun run ens:check` ✓ earlier that hour, backup video ready on a laptop.
+Use a development build for the tamper control; it is absent from release Settings (D35).
 
 ## Demo video (2–4 min)
 | Time | Shot | Voice-over |

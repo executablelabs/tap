@@ -46,7 +46,7 @@ The full canonical tree is in `CLAUDE.md` → *Repository layout*. At a glance:
 | `contracts/` | Solidity (Foundry): `TapPay`, `TapMerchantRegistrar`, tests, deploy scripts | SDK track |
 | `packages/core/` | `@tap/core`: the protocol SDK, pure TS | SDK track |
 | `packages/react-native/` | `@tap/react-native`: NFC transport + hooks | Flow track |
-| `apps/mobile/` | The demo app (merchant + customer behind a role picker) | Flow track |
+| `apps/mobile/` | Customer wallet home, first-run setup, and merchant tools (D35) | Flow track |
 | `apps/server/` | Optional Hono server. Doesn't exist unless a decision adds it. | SDK track |
 | `scripts/` | CLI jobs: ENS setup, merchant registration, ABI generation, architecture check, e2e | SDK track |
 

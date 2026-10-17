@@ -14,7 +14,7 @@
 - **Pitch:** turn any phone into a payment terminal for Japan's cash-only merchants, with ENS as the answer to "who am I actually paying?"
 - **Flow:** merchant enters $5 → phone broadcasts a signed request over NFC (HCE) → customer taps → wallet verifies the merchant on ENSv2 and shows **"Takoyaki Stand · yoyogi-market.tap.eth ✓ · $5.00"** → one tx on Base Sepolia → both phones green.
 - **Killer beat:** a tampered tag shows **"Unverified merchant"** and blocks payment.
-- **It's an SDK:** `@tap/core` (protocol, pure TS) + `@tap/react-native` (NFC transport + hooks); the demo app ships both halves behind a role picker.
+- **It's an SDK:** `@tap/core` (protocol, pure TS) + `@tap/react-native` (NFC transport + hooks); the app opens a customer wallet home with deliberate merchant entry (D35).
 - **Deadline:** submission **Sun 2026-09-27 09:00 JST**. Never cut the core loop (docs/10).
 
 ## 2. Which doc to read
@@ -109,7 +109,7 @@ tap/
 │     └─ test/                          # state machines (pure, bun test)
 │
 ├─ apps/                         # THINGS WE RUN
-│  ├─ mobile/                           # the demo app, both roles (docs/07)
+│  ├─ mobile/                           # customer wallet home + merchant tools (docs/07, D35)
 │  │  ├─ app.config.ts · eas.json · metro.config.js · .env.example
 │  │  ├─ plugins/withHce.js             # HCE service + aid_list.xml
 │  │  ├─ app/                           # expo-router: one file = one screen
@@ -213,6 +213,7 @@ Tick only when the task's acceptance criteria in `docs/10-build-plan.md` pass. W
 - [ ] S10 README + ENS write-up (demo video/GIF pending)
 
 **Flow track**
+- Entry productization (D35): customer home, durable onboarding/preferences, wallet recovery and explicit scanning implemented with Bun coverage. Physical-device P5/P6/P7 validation remains pending; this does not complete F3–F6/J1 acceptance.
 - [x] F1 NFC spike passed (or QR plan adopted)
 - [x] F2 `@tap/react-native`
 - [ ] F3 app shell

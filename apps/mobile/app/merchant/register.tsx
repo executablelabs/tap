@@ -73,7 +73,7 @@ export default function RegisterMerchantScreen() {
         { label, displayName: displayName.trim(), owner: account.address },
         account,
       );
-      setSettings({ merchantName: fullName, role: "merchant" });
+      setSettings({ merchantName: fullName });
       setRegisteredName(fullName);
     } catch (caught) {
       const code = caught instanceof TapError ? caught.code : "registration_failed";

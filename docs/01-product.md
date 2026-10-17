@@ -79,7 +79,7 @@ A swapped or tampered tag fails at least one of these checks. That's the killer 
 ## What makes it an SDK (the judging claim)
 - `@tap/core` is pure TypeScript with zero React Native imports. It runs in Node/Bun (e2e script), in the app, and later on the web.
 - `@tap/react-native` only moves bytes over NFC. Swapping NFC for QR costs almost nothing.
-- The demo app ships **both halves behind a role toggle** to show it's a protocol, not one app.
+- The app ships **both SDK halves**, with a customer wallet home and deliberate merchant-tools entry (D35).
 
 ## Success criteria
 1. Live demo at the ENS booth: tap → verified name → paid → merchant green, in under 10 seconds.

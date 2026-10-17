@@ -94,8 +94,8 @@ Every task below lists: owner · depends on · the docs to read · acceptance cr
 **Commits:** `feat(rn): add NFC support detection and transport errors` → `feat(rn): add HCE startCharge/stopCharge` → `feat(rn): add readRequest with reader mode and timeout` → `feat(rn): add charge state machine with tests` → `feat(rn): add tap-to-pay state machine with tests` → `feat(rn): add useCharge hook` → `feat(rn): add useTapToPay hook`
 
 ### F3 · App shell · depends: F2 (can start alongside) · H4–H5
-**Read:** `07` → Wallet, Navigation, settings, Copy. **Accept:** key created on first launch and persisted; role picker; settings shows address + balances (fake core ok); `copy.ts` has every string in the Copy table.
-**Commits:** `feat(mobile): add secure-store wallet and WalletProvider` → `feat(mobile): add role picker and navigation` → `feat(mobile): add settings screen with dev and demo toggles` → `feat(mobile): add copy table for all user-facing strings`
+**Read:** `07` → Wallet, Navigation, settings, Copy. **Accept (entry updated by D35):** key created on first launch and persisted; retryable hydration; durable onboarding and transport/merchant preferences; customer home with explicit scanning and deliberate merchant entry; settings shows address + live balances; development helpers clearly confined to development builds; `copy.ts` has every string in the Copy table.
+**Status (10-17):** entry behavior and automated Bun coverage implemented. Native first-run/relaunch, back navigation, and P5/P6/P7 still require phone validation; F3 remains unchecked until device acceptance.
 
 ### F4 · Merchant screens · depends: F3 · H5–H6.5
 **Accept:** amount entry → charge → paid/expired/cancelled/error, per the `07` state table, working with fake core; setup banner wired to `checkMerchantSetup`.

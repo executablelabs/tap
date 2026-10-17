@@ -14,7 +14,7 @@ import { theme } from "../../src/theme";
 import { useWallet } from "../../src/wallet/WalletProvider";
 
 function DoneButton({ onPress }: { onPress(): void }) {
-  return <Button label="Done" variant="secondary" onPress={onPress} />;
+  return <Button label={copy.entry.done} variant="secondary" onPress={onPress} />;
 }
 
 function AssetOption({
@@ -65,7 +65,7 @@ function ConfirmView({ account, url }: { account: LocalAccount; url: string }) {
     }
   }, [pay.state]);
 
-  const done = () => router.replace("/customer");
+  const done = () => router.dismissTo("/");
 
   // INV-17: the ONLY branch that may render a Pay button or reach confirm().
   // The guard narrows verify to its ok:true variant, so displayAmount and
@@ -184,19 +184,22 @@ function ConfirmView({ account, url }: { account: LocalAccount; url: string }) {
 export default function CustomerConfirmScreen() {
   const { url } = useLocalSearchParams<{ url: string }>();
   const { account } = useWallet();
+  const router = useRouter();
 
-  if (!url) {
+  if (typeof url !== "string" || !url) {
     return (
       <StatusView
         variant="failure"
         title="Unverified merchant"
         detail={copy.getErrorMessage("malformed")}
-      />
+      >
+        <DoneButton onPress={() => router.dismissTo("/")} />
+      </StatusView>
     );
   }
   if (!account) return <StatusView variant="pending" title="Checking merchant…" />;
 
-  return <ConfirmView account={account} url={url} />;
+  return <ConfirmView key={`${account.address}:${url}`} account={account} url={url} />;
 }
 
 const styles = StyleSheet.create({

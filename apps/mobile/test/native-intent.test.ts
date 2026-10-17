@@ -2,13 +2,16 @@ import { describe, expect, test } from "bun:test";
 import { redirectSystemPath } from "../app/+native-intent";
 
 describe("native payment links", () => {
-  test("routes the canonical payment URL to verification without decoding it", () => {
-    const url = "https://tap-pay.xyz/p?v=1&c=signed%2Bpayload";
+  test.each([true, false])(
+    "routes a canonical payment URL to verification without decoding it (initial=%s)",
+    (initial) => {
+      const url = "https://tap-pay.xyz/p?v=1&c=signed%2Bpayload";
 
-    expect(redirectSystemPath({ path: url, initial: true })).toBe(
-      `/customer/confirm?url=${encodeURIComponent(url)}`,
-    );
-  });
+      expect(redirectSystemPath({ path: url, initial })).toBe(
+        `/customer/confirm?url=${encodeURIComponent(url)}`,
+      );
+    },
+  );
 
   test.each([
     "http://tap-pay.xyz/p?v=1",
