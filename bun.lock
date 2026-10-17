@@ -47,6 +47,7 @@
       "name": "@tap/server",
       "version": "0.0.0",
       "dependencies": {
+        "@tap/core": "workspace:*",
         "hono": "4.13.9",
       },
       "devDependencies": {

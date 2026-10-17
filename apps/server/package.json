@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tap/core": "workspace:*",
     "hono": "4.13.9"
   },
   "devDependencies": {
