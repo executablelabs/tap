@@ -15,6 +15,7 @@ import { getUserOperationHash } from "viem/account-abstraction";
 import { PILOT_ACCOUNT_STACK } from "../config/chains";
 import type { SignedRequest } from "../types";
 import { getPilotAccount, type PilotAccount, pilotAccountAdapter } from "../wallet/pilot-account";
+import { validateSettlement } from "./pay";
 import { assertPilotPayment } from "./pilot-calls";
 
 export type PilotOperation = {
@@ -135,6 +136,7 @@ export function assertPilotOperation(
   limits: PilotLimits,
   context: { deployed: boolean; paymaster: Address },
 ): void {
+  validateSettlement(signed);
   if (Object.values(limits).some((n) => typeof n !== "bigint" || n <= 0n))
     throw new Error("Pilot budgets are not configured");
   if (

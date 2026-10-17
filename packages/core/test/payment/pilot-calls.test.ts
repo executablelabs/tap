@@ -5,6 +5,7 @@ import {
   assertPilotPayment,
   encodePilotPayment,
   pilotBatchAbi,
+  pilotPaymentCallHash,
   pilotPaymentCalls,
 } from "../../src/payment/pilot-calls";
 import { createFakeCore, fakeMerchantAccount } from "../../src/testing";
@@ -28,6 +29,9 @@ test("pilot batch is exactly approval + original payment, with zero native value
   expect(() => assertPilotPayment(signed, encoded)).not.toThrow();
   expect(pilotPaymentCalls(signed).map((call) => call.value)).toEqual([0n, 0n]);
   expect(() => assertPilotPayment(signed, `${encoded}00`)).toThrow();
+  const digest = pilotPaymentCallHash(signed);
+  configureTap({ now: () => new Date(Number(signed.request.expiry + 1n) * 1000) });
+  expect(pilotPaymentCallHash(signed)).toBe(digest); // Archive verification survives expiry.
 });
 
 test("rejects every altered inner call, extra call and single-call wrapper", async () => {

@@ -127,6 +127,10 @@ test("operation rejects every unapproved account, deployment, nonce, paymaster a
   expect(() =>
     assertPilotOperation(f.op, f.account, f.signed, { ...limits, globalDailyWei: 0n }, f.context),
   ).toThrow();
+  configureTap({ now: () => new Date(Number(f.signed.request.expiry + 1n) * 1000) });
+  expect(() => assertPilotOperation(f.op, f.account, f.signed, limits, f.context)).toThrow(
+    "expired",
+  );
 });
 
 test("intent proofs cannot authorize a different action, audience, request or payer", async () => {

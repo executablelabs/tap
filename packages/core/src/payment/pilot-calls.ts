@@ -7,9 +7,8 @@ import {
   parseAbi,
 } from "viem";
 import { tapPayAbi } from "../config/abi";
-import { DEFAULT_TOKEN, PAYMENT_CHAIN_ID } from "../config/chains";
+import { DEFAULT_TOKEN, getPaymentChain, PAYMENT_CHAIN_ID } from "../config/chains";
 import type { SignedRequest } from "../types";
-import { validateSettlement } from "./pay";
 
 const approvalAbi = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
 export const pilotBatchAbi = parseAbi([
@@ -17,8 +16,10 @@ export const pilotBatchAbi = parseAbi([
 ]);
 
 export function pilotPaymentCalls(signed: SignedRequest) {
-  const chain = validateSettlement(signed);
+  const chain = getPaymentChain(signed.chainId);
   if (
+    !chain ||
+    signed.request.amount <= 0n ||
     signed.chainId !== PAYMENT_CHAIN_ID ||
     signed.request.token.toLowerCase() !== DEFAULT_TOKEN.toLowerCase()
   ) {
