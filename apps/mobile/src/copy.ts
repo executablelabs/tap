@@ -96,4 +96,6 @@ const labels = {
   yourWallet: "Your wallet",
 } as const;
 
-export const copy = { errorMessages, getErrorMessage, ensVerifiedLabel, labels } as const;
+const scan = { start: "Read NFC request", cancel: "Cancel NFC scan", qr: "Scan QR code" } as const;
+
+export const copy = { errorMessages, getErrorMessage, ensVerifiedLabel, labels, scan } as const;

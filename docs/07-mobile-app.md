@@ -97,8 +97,8 @@ If `demoTamper` is on, a small red "DEMO: tampered tag" chip is shown so it's ne
 - Header: short address, ⚙︎. `BalanceRow`: "USDC $12.00 · Gas ✓/✗" via `getWalletBalances`.
 - Warnings: no gas → "Add Base Sepolia ETH for gas"; USDC 0 → "Add USDC to pay".
 - Zero-balance warnings include Base and Circle faucet links and copy the customer wallet address before opening them.
-- Big prompt "Hold near the merchant's phone" and `startReading()` on focus (nfc); a **Scan QR instead** button opens `QrScanner` → `submitUrl(url)`.
-- When a URL arrives → navigate to `customer/confirm`.
+- **Read NFC request** starts a single read; focus/re-focus alone never starts one. Show "Hold near the merchant's phone" only while actually reading; allow cancel and retry. **Scan QR code** explicitly opens `QrScanner`; the preferred method has primary button styling.
+- Blur/cancel/QR switching invalidates late NFC results before native cleanup. When a URL arrives, replace the scan route with `customer/confirm`; all URLs remain untrusted input.
 
 ### `customer/confirm`: Verify and pay
 The verified view has a `USDC / ETH` segmented control. USDC remains the default and follows the
