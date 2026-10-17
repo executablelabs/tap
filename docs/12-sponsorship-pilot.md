@@ -40,14 +40,17 @@ verification-gas multiplier for paymasters. Provider markup/L1/data accounting
 still needs an independently reviewed cost model; the counters are conservative
 reservation ceilings, not an invoice estimator.
 
-`SponsorLedger` uses built-in `bun:sqlite`, schema version 1, WAL, FULL synchronous
+`SponsorLedger` uses built-in `bun:sqlite`, schema version 2, WAL, FULL synchronous
 writes, a busy timeout and immediate transactions. Opening requires an explicitly
 provided absolute database path. Runtime integration must use an approved persistent
 local volume and **one host**; ephemeral Railway filesystems and multi-host SQLite
 are not accepted deployment designs. Importing modules opens no database. Tests
 may inject an in-memory database; persistence tests reopen a temporary file.
 
-Unique owner/idempotency and payer/request keys prevent duplicate logical payments.
+Unique owner/idempotency keys and authenticated payer/request claims prevent duplicate
+logical payments. Unauthenticated created challenges do not claim a request; otherwise
+an observer could squat a victim's pending payment. Earlier offline schema versions
+are rejected rather than silently migrated.
 Preparation reserves the full per-operation ceiling atomically before any provider
 authorization. Concurrent callers/connections cannot exceed owner/global budgets.
 UTC-day accounting includes outstanding liabilities from all previous days.
@@ -60,6 +63,48 @@ Operation state, unsigned prepared operation, UserOperation hash and transaction
 hash persist independently of mobile routes. Owner operation signatures are not
 stored in the ledger. Unknown ledger versions fail closed; no automatic migration
 or deletion is attempted. SQLite files are operational data, not repository files.
+
+## Offline service composition (D39)
+
+`createSponsorService(deps)` is a dependency-injected Hono boundary. The **public**
+server mounts it with no dependencies: `/api/sponsor/capabilities` reports
+`available: false`; prepare/submit return 503. There is no environment toggle or
+generic RPC forwarding. A reviewed live gateway is intentionally not implemented
+or attached in this slice; an operator endpoint alone is insufficient to enable it.
+No secret/config values are read by the module, and no database is opened at startup.
+
+Offline injected tests exercise these bounded endpoints:
+
+- `POST /challenge`: owner, original request URL and idempotency key only. Count
+  attempts before verification/RPC; derive the separate account; check account
+  state through the gateway; build an immutable audience/account/request/calls
+  challenge. Lifetime is at most 60 seconds and never exceeds request expiry.
+- `POST /prepare`: intent ID and **prepare** owner proof. Repeat live request/ENS
+  verification and paid-state checks; atomically claim/reserve; request provider
+  preparation once; validate deployment, paymaster, gas and every exact call.
+- `POST /submit`: ID, separate **submit** owner proof and operation signature. Repeat
+  verification/account checks and validate the pinned owner wrapper. Persist the
+  computed UserOperation hash before the first send; a timeout or mismatched hash
+  remains unknown. Repeated requests cannot submit again.
+- `POST /status`: ID and separate **status** owner proof. Continue read-only
+  reconciliation even after payment enablement is disabled. Require canonical
+  chain receipt evidence, not a provider's success assertion. Terminal evidence is
+  monotonic. Receipt lookup is separate from transaction submission.
+
+All bodies are bounded and known fields only; rejection responses are generic and
+never expose endpoint/error details. Preparation/submit proofs cannot be reused
+for a different action or intent. Owner signatures are checked locally; no root or
+session key is sent to the server. Stored prepared operations are unsigned.
+
+The injected gateway contract requires explicit network/EntryPoint identity,
+on-chain account/factory/implementation/owner checks (including rejecting 7702
+owners), exact provider authorization binding/validity, and a trusted canonical
+chain receipt reader. Readiness flags in test fixtures **are not evidence** that
+any of those live checks passed. Public code cannot turn these flags on via HTTP.
+Before production wiring, implement and independently validate that adapter and
+the complete operator policy, durable volume, account rescue and Expo acceptance.
+Challenge throttles bound expenditure but are not unique-human authentication and
+cannot eliminate denial of service by a party generating many addresses.
 
 ## Regression and remaining gates
 

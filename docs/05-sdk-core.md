@@ -56,6 +56,8 @@ Operation hashes bind Base Sepolia and EP 0.6. Proofs distinguish prepare/submit
 and bind audience, owner, payer, request, calls, intent and preparation expiry.
 Receipt success requires matching `Paid` within the matching EntryPoint operation's
 log range; whole-bundle success or `isPaid` alone cannot attribute customer payment.
+`pilotPaymentCallHash` (D39) hashes the full canonical batch, including the merchant
+signature, for intent-scoped owner proofs. It is not a replacement request hash.
 
 ## Types 🔒 (`src/types.ts`)
 ```ts

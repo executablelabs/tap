@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { handoffPage, landingPage } from "./pages";
+import { createSponsorService } from "./sponsor/service";
 import { styles } from "./styles";
 
 export const apkDownloadUrl =
@@ -36,6 +37,8 @@ app.use(
 );
 
 app.get("/health", (context) => context.json({ status: "ok" }));
+// No credentials, environment enablement, database or live gateway is attached.
+app.route("/api/sponsor", createSponsorService());
 app.get("/.well-known/assetlinks.json", (context) => {
   context.header("cache-control", "public, max-age=3600");
   return context.json(androidAssetLinks);

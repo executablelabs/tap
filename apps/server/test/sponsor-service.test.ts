@@ -1,0 +1,359 @@
+import { Database } from "bun:sqlite";
+import { afterEach, expect, test } from "bun:test";
+import {
+  configureTap,
+  generatePrivateKey,
+  getPaymentChain,
+  getPilotAccount,
+  type Hash,
+  PILOT_ACCOUNT_STACK,
+  type PilotChallenge,
+  type PilotOperation,
+  type PilotReceipt,
+  pilotOperationHash,
+  pilotOperationWire,
+  pilotProofMessage,
+  privateKeyToAccount,
+  signPilotOperation,
+} from "@tap/core";
+import { createFakeCore, fakeMerchantAccount } from "@tap/core/testing";
+import {
+  createPublicClient,
+  custom,
+  encodeAbiParameters,
+  encodeEventTopics,
+  type Hex,
+  type PublicClient,
+  parseAbi,
+} from "viem";
+import { baseSepolia } from "viem/chains";
+import { app } from "../src/app";
+import { SponsorLedger } from "../src/sponsor/ledger";
+import type { SponsorPolicy } from "../src/sponsor/policy";
+import {
+  createSponsorService,
+  type SponsorDependencies,
+  type SponsorGateway,
+} from "../src/sponsor/service";
+
+afterEach(() => configureTap());
+async function fixture() {
+  const owner = privateKeyToAccount(generatePrivateKey());
+  const payer = "0x0000000000000000000000000000000000001234";
+  const paymaster = "0x0000000000000000000000000000000000005678";
+  configureTap({
+    paymentClient: createPublicClient({
+      chain: baseSepolia,
+      transport: custom({
+        async request({ method }) {
+          if (method !== "eth_call") throw new Error("Unexpected RPC");
+          return encodeAbiParameters([{ type: "address" }], [payer]);
+        },
+      }),
+    }) as PublicClient,
+  });
+  const account = await getPilotAccount(owner.address);
+  const core = createFakeCore();
+  const signed = await core.signRequest(
+    core.newChargeRequest({
+      merchant: fakeMerchantAccount.address,
+      merchantName: "stall.tap.eth",
+      amount: 5_000_000n,
+    }),
+    fakeMerchantAccount,
+  );
+  const url = core.encodeRequestUrl(signed);
+  const ledger = new SponsorLedger(new Database(":memory:"));
+  const policy: SponsorPolicy = {
+    audience: "https://tap-pay.xyz",
+    ownerChallengesDaily: 20,
+    globalChallengesDaily: 40,
+    limits: {
+      operationWei: 1_000_000n,
+      ownerDailyWei: 2_000_000n,
+      globalDailyWei: 3_000_000n,
+      principalUsdc: 10_000_000n,
+      callGas: 100_000n,
+      verificationGas: 100_000n,
+      preVerificationGas: 100_000n,
+      feePerGas: 1n,
+    },
+  };
+  let prepares = 0;
+  let sends = 0;
+  let valid = true;
+  let badCalls = false;
+  let sendThrows = false;
+  let storedOp: PilotOperation | undefined;
+  let included = false;
+  let clock = Date.now();
+  const tx = `0x${"ab".repeat(32)}` as Hash;
+  const gateway: SponsorGateway = {
+    chainId: 84532,
+    entryPoint: PILOT_ACCOUNT_STACK.entryPoint,
+    assertAccount: async () => ({ deployed: false, paymaster }),
+    async prepare(_account, callData) {
+      prepares++;
+      return {
+        sender: payer,
+        nonce: 0n,
+        initCode: account.initCode,
+        callData: badCalls ? `${callData}00` : callData,
+        callGasLimit: 50_000n,
+        verificationGasLimit: 50_000n,
+        preVerificationGas: 20_000n,
+        maxFeePerGas: 1n,
+        maxPriorityFeePerGas: 1n,
+        paymasterAndData: paymaster,
+        signature: "0x",
+      };
+    },
+    async send(operation) {
+      sends++;
+      storedOp = operation;
+      if (sendThrows) throw new Error("PRIVATE PROVIDER ENDPOINT MUST NOT LEAK");
+      return pilotOperationHash(operation);
+    },
+    async locate(hash) {
+      return included && storedOp
+        ? { userOpHash: hash, transactionHash: tx, sender: payer, nonce: storedOp.nonce }
+        : null;
+    },
+    async canonicalReceipt() {
+      if (!storedOp) throw new Error("Missing submission");
+      const chain = getPaymentChain(84532);
+      if (!chain) throw new Error("Missing chain");
+      const paidAbi = parseAbi([
+        "event Paid(address indexed merchant, bytes32 indexed nonce, address indexed payer, address token, uint256 amount)",
+      ]);
+      const opAbi = parseAbi([
+        "event UserOperationEvent(bytes32 indexed userOpHash, address indexed sender, address indexed paymaster, uint256 nonce, bool success, uint256 actualGasCost, uint256 actualGasUsed)",
+      ]);
+      return {
+        status: "success",
+        transactionHash: tx,
+        logs: [
+          {
+            address: chain.tapPay,
+            topics: encodeEventTopics({
+              abi: paidAbi,
+              eventName: "Paid",
+              args: { merchant: signed.request.merchant, nonce: signed.request.nonce, payer },
+            }) as [Hex, ...Hex[]],
+            data: encodeAbiParameters(
+              [{ type: "address" }, { type: "uint256" }],
+              [signed.request.token, signed.request.amount],
+            ),
+          },
+          {
+            address: PILOT_ACCOUNT_STACK.entryPoint,
+            topics: encodeEventTopics({
+              abi: opAbi,
+              eventName: "UserOperationEvent",
+              args: { userOpHash: pilotOperationHash(storedOp), sender: payer, paymaster },
+            }) as [Hex, ...Hex[]],
+            data: encodeAbiParameters(
+              [{ type: "uint256" }, { type: "bool" }, { type: "uint256" }, { type: "uint256" }],
+              [storedOp.nonce, true, 1n, 1n],
+            ),
+          },
+        ],
+      } satisfies PilotReceipt;
+    },
+  };
+  const deps: SponsorDependencies = {
+    enabled: true,
+    readiness: {
+      accountCode: true,
+      providerBinding: true,
+      persistentHost: true,
+      rescue: true,
+      device: true,
+    },
+    policy,
+    ledger,
+    gateway,
+    deriveAccount: async (root) => ({ ...account, owner: root }),
+    verify: async () =>
+      valid
+        ? {
+            ok: true,
+            ensName: "stall.tap.eth",
+            displayName: null,
+            tokenSymbol: "USDC",
+            displayAmount: "$5.00",
+            expiresAt: new Date(Number(signed.request.expiry) * 1000),
+          }
+        : { ok: false, reason: "network_error" },
+    settled: async () => false,
+    now: () => clock,
+  };
+  const service = createSponsorService(deps);
+  const post = (path: string, body: unknown) =>
+    service.request(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  async function challenge() {
+    const response = await post("/challenge", {
+      owner: owner.address,
+      requestUrl: url,
+      idempotencyKey: "payment_0001",
+    });
+    expect(response.status).toBe(200);
+    return ((await response.json()) as { challenge: PilotChallenge }).challenge;
+  }
+  const proof = (challenge: PilotChallenge, action: "prepare" | "submit" | "status") =>
+    owner.signMessage({ message: pilotProofMessage(challenge, action) });
+  return {
+    owner,
+    account,
+    signed,
+    policy,
+    deps,
+    ledger,
+    service,
+    post,
+    challenge,
+    proof,
+    prepares: () => prepares,
+    sends: () => sends,
+    valid: (value: boolean) => {
+      valid = value;
+    },
+    badCalls: () => {
+      badCalls = true;
+    },
+    sendThrows: () => {
+      sendThrows = true;
+    },
+    include: () => {
+      included = true;
+    },
+    advance: () => {
+      clock += 60_001;
+    },
+  };
+}
+
+test("public pilot is unavailable and cannot be enabled by request fields or arbitrary RPC", async () => {
+  const caps = await app.request("/api/sponsor/capabilities");
+  expect(await caps.json()).toMatchObject({
+    available: false,
+    chainId: 84532,
+    entryPointVersion: "0.6",
+  });
+  expect(
+    (await app.request("/api/sponsor/prepare", { method: "POST", body: '{"enabled":true}' }))
+      .status,
+  ).toBe(503);
+  expect((await app.request("/api/sponsor/eth_sendUserOperation", { method: "POST" })).status).toBe(
+    404,
+  );
+});
+
+test("authenticated prepare is replay-safe and rechecks ENS before reserving provider authorization", async () => {
+  const f = await fixture();
+  try {
+    const ch = await f.challenge();
+    const wrong = await fakeMerchantAccount.signMessage({
+      message: pilotProofMessage(ch, "prepare"),
+    });
+    expect((await f.post("/prepare", { id: ch.id, proof: wrong })).status).toBe(400);
+    expect(
+      (await f.post("/prepare", { id: ch.id, proof: await f.proof(ch, "prepare"), callData: "0x" }))
+        .status,
+    ).toBe(400);
+    expect(f.prepares()).toBe(0);
+    const proof = await f.proof(ch, "prepare");
+    f.valid(false);
+    expect((await f.post("/prepare", { id: ch.id, proof })).status).toBe(400);
+    f.valid(true);
+    const responses = await Promise.all([
+      f.post("/prepare", { id: ch.id, proof }),
+      f.post("/prepare", { id: ch.id, proof }),
+    ]);
+    expect(responses.every((response) => response.status < 300)).toBe(true);
+    expect(f.prepares()).toBe(1);
+    await f.post("/prepare", { id: ch.id, proof });
+    expect(f.prepares()).toBe(1);
+    expect(f.ledger.get(ch.id).status).toBe("prepared");
+  } finally {
+    f.ledger.close();
+  }
+});
+
+test("malformed provider execution remains unknown with reservation retained", async () => {
+  const f = await fixture();
+  try {
+    const ch = await f.challenge();
+    f.badCalls();
+    const response = await f.post("/prepare", { id: ch.id, proof: await f.proof(ch, "prepare") });
+    expect(await response.json()).toMatchObject({ status: "unknown", operation: null });
+    expect(f.ledger.reserve(ch.id, f.policy, Date.now())).toBe(false);
+    expect(f.sends()).toBe(0);
+  } finally {
+    f.ledger.close();
+  }
+});
+
+test("expired, unconfigured and unverified stacks never call the provider", async () => {
+  const f = await fixture();
+  try {
+    const ch = await f.challenge();
+    f.advance();
+    expect(
+      (await f.post("/prepare", { id: ch.id, proof: await f.proof(ch, "prepare") })).status,
+    ).toBe(400);
+    f.deps.policy = null;
+    expect(
+      (await f.post("/prepare", { id: ch.id, proof: await f.proof(ch, "prepare") })).status,
+    ).toBe(503);
+    f.deps.policy = f.policy;
+    f.deps.readiness.providerBinding = false;
+    expect((await f.service.request("/capabilities")).status).toBe(200);
+    expect(await (await f.service.request("/capabilities")).json()).toMatchObject({
+      available: false,
+    });
+    expect(f.prepares()).toBe(0);
+  } finally {
+    f.ledger.close();
+  }
+});
+
+test("ambiguous send is never repeated; status reconciles canonical evidence even after payment disablement", async () => {
+  const f = await fixture();
+  try {
+    const ch = await f.challenge();
+    await f.post("/prepare", { id: ch.id, proof: await f.proof(ch, "prepare") });
+    const op = f.ledger.get(ch.id).operation;
+    if (!op) throw new Error("Missing prepared operation");
+    const signature = await signPilotOperation(f.owner, f.account, op, f.signed, f.policy.limits, {
+      deployed: false,
+      paymaster: op.paymasterAndData.slice(0, 42) as `0x${string}`,
+    });
+    f.sendThrows();
+    const body = { id: ch.id, proof: await f.proof(ch, "submit"), signature };
+    expect(await (await f.post("/submit", body)).json()).toMatchObject({
+      status: "unknown",
+      userOperationHash: pilotOperationHash(op),
+    });
+    expect(JSON.stringify(pilotOperationWire(f.ledger.get(ch.id).operation ?? op))).not.toContain(
+      signature,
+    );
+    await f.post("/submit", body);
+    expect(f.sends()).toBe(1);
+    f.deps.enabled = false;
+    f.deps.policy = null;
+    const statusBody = { id: ch.id, proof: await f.proof(ch, "status") };
+    expect(await (await f.post("/status", statusBody)).json()).toMatchObject({ status: "unknown" });
+    f.include();
+    expect(await (await f.post("/status", statusBody)).json()).toMatchObject({ status: "paid" });
+    f.ledger.mark(ch.id, "unknown");
+    expect(f.ledger.get(ch.id).status).toBe("paid");
+    expect(f.sends()).toBe(1);
+  } finally {
+    f.ledger.close();
+  }
+});

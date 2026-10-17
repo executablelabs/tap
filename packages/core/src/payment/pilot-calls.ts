@@ -1,4 +1,11 @@
-import { decodeFunctionData, encodeFunctionData, type Hex, parseAbi } from "viem";
+import {
+  decodeFunctionData,
+  encodeFunctionData,
+  type Hash,
+  type Hex,
+  keccak256,
+  parseAbi,
+} from "viem";
 import { tapPayAbi } from "../config/abi";
 import { DEFAULT_TOKEN, PAYMENT_CHAIN_ID } from "../config/chains";
 import type { SignedRequest } from "../types";
@@ -45,6 +52,10 @@ export function encodePilotPayment(signed: SignedRequest): Hex {
     functionName: "executeBatch",
     args: [pilotPaymentCalls(signed)],
   });
+}
+
+export function pilotPaymentCallHash(signed: SignedRequest): Hash {
+  return keccak256(encodePilotPayment(signed));
 }
 
 export function assertPilotPayment(signed: SignedRequest, callData: Hex): void {

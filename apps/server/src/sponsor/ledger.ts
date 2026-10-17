@@ -41,14 +41,15 @@ export class SponsorLedger {
     db.exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;");
     db.exec("CREATE TABLE IF NOT EXISTS pilot_meta (version INTEGER NOT NULL)");
     const version = db.query<{ version: number }, []>("SELECT version FROM pilot_meta").get();
-    if (version && version.version !== 1) throw new Error("Unsupported pilot ledger version");
-    if (!version) db.exec("INSERT INTO pilot_meta VALUES (1)");
+    if (version && version.version !== 2) throw new Error("Unsupported pilot ledger version");
+    if (!version) db.exec("INSERT INTO pilot_meta VALUES (2)");
     db.exec(`CREATE TABLE IF NOT EXISTS pilot_intents (
       id TEXT PRIMARY KEY, owner TEXT NOT NULL, payer TEXT NOT NULL, idem TEXT NOT NULL,
       requestHash TEXT NOT NULL, requestUrl TEXT NOT NULL, callData TEXT NOT NULL,
       challenge TEXT NOT NULL, status TEXT NOT NULL, operation TEXT, opHash TEXT, txHash TEXT,
-      reservedWei TEXT, reservedDay INTEGER, UNIQUE(owner, idem), UNIQUE(payer, requestHash)
-    ); CREATE TABLE IF NOT EXISTS pilot_attempts (owner TEXT NOT NULL, day INTEGER NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(owner,day));`);
+      reservedWei TEXT, reservedDay INTEGER, UNIQUE(owner, idem)
+    ); CREATE UNIQUE INDEX IF NOT EXISTS pilot_request_claim ON pilot_intents(payer,requestHash) WHERE status<>'created';
+    CREATE TABLE IF NOT EXISTS pilot_attempts (owner TEXT NOT NULL, day INTEGER NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(owner,day));`);
   }
 
   static open(path: string): SponsorLedger {
@@ -96,10 +97,8 @@ export class SponsorLedger {
     return this.db
       .transaction(() => {
         const prior = this.db
-          .query<Row, [string, string, string, string]>(
-            "SELECT * FROM pilot_intents WHERE (owner=? AND idem=?) OR (payer=? AND requestHash=?)",
-          )
-          .get(intent.owner, intent.idem, intent.payer, intent.requestHash);
+          .query<Row, [string, string]>("SELECT * FROM pilot_intents WHERE owner=? AND idem=?")
+          .get(intent.owner, intent.idem);
         if (prior) {
           if (
             prior.owner !== intent.owner ||

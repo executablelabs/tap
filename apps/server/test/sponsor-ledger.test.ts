@@ -58,6 +58,19 @@ test("missing, zero and malformed budgets deny configuration", () => {
   expect(parseSponsorPolicy({ ...values, SPONSOR_AUDIENCE: "http://tap-pay.xyz" })).toBeNull();
 });
 
+test("an earlier ledger schema is rejected without deleting its data", () => {
+  const db = new Database(":memory:");
+  try {
+    db.exec("CREATE TABLE pilot_meta(version INTEGER); INSERT INTO pilot_meta VALUES (1)");
+    expect(() => new SponsorLedger(db)).toThrow("version");
+    expect(db.query<{ version: number }, []>("SELECT version FROM pilot_meta").get()?.version).toBe(
+      1,
+    );
+  } finally {
+    db.close();
+  }
+});
+
 test("reservations are atomic, idempotent and carry unresolved liability across day boundaries", async () => {
   const ledger = new SponsorLedger(new Database(":memory:"));
   try {
@@ -68,7 +81,8 @@ test("reservations are atomic, idempotent and carry unresolved liability across 
     expect(attempts.filter((result) => result.status === "fulfilled")).toHaveLength(2);
     expect(ledger.reserve("a", testPolicy, 0)).toBe(false);
     expect(() => ledger.create({ ...testIntent("a"), requestUrl: "changed" })).toThrow();
-    expect(() => ledger.create(testIntent("new-key", "owner", "a"))).toThrow();
+    ledger.create(testIntent("new-key", "owner", "a"));
+    expect(() => ledger.reserve("new-key", testPolicy, 0)).toThrow();
     ledger.create({
       ...testIntent("d"),
       challenge: { ...testIntent("d").challenge, expiresAt: 100_000_000 },
