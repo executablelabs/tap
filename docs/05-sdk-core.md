@@ -48,6 +48,15 @@ These primitives neither authorize spending nor enable a provider. Live code,
 provider, storage, budget and recovery approval remain gates; no teammate approval
 is asserted by D36. Existing settlement APIs and merchant wire format are unchanged.
 
+D37 adds `PilotOperation`, `PilotOperationWire`, `PilotLimits`, `PilotStatus`,
+`PilotChallenge`, `PilotAction`, `PilotReceipt` and the operation serialization,
+hashing, validation, owner signing/proof and receipt reconciliation helpers exported
+from `src/index.ts`. Wire integers are canonical decimal strings, not JSON numbers.
+Operation hashes bind Base Sepolia and EP 0.6. Proofs distinguish prepare/submit/status
+and bind audience, owner, payer, request, calls, intent and preparation expiry.
+Receipt success requires matching `Paid` within the matching EntryPoint operation's
+log range; whole-bundle success or `isPaid` alone cannot attribute customer payment.
+
 ## Types 🔒 (`src/types.ts`)
 ```ts
 import type { Address, Hash, Hex, LocalAccount, PublicClient } from "viem";
