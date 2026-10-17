@@ -163,6 +163,11 @@ contract TapPay is EIP712 {
 - Any change to the struct, typehash or domain is a 🔒 decision: update `hash-vector.json`, `packages/core/src/request/sign.ts`, and this doc in the same commit.
 
 ### Tests (`test/TapPay.t.sol`)
+`test/PilotBatch.t.sol` additionally checks caller-as-payer, consumed exact approval,
+and rollback of approval when settlement fails through an ABI-compatible revert-all
+batch fixture. It is not Coinbase Smart Wallet or EntryPoint deployment evidence and
+does not establish provider compatibility. D36 integration remains disabled.
+
 All signatures come from `vm.sign` (merchant request signature and customer permit signature). Token is `MockERC20Permit` (6 decimals).
 
 | Test | Asserts |
