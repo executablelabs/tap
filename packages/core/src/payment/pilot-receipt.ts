@@ -2,6 +2,7 @@ import { type Address, decodeEventLog, type Hash, type Hex, isAddressEqual } fro
 import { entryPoint06Abi } from "viem/account-abstraction";
 import { tapPayAbi } from "../config/abi";
 import { getPaymentChain, PILOT_ACCOUNT_STACK } from "../config/chains";
+import { getPaymentClient } from "../config/clients";
 import type { SignedRequest } from "../types";
 import type { PilotOperation } from "./pilot-operation";
 import { pilotOperationHash } from "./pilot-operation";
@@ -11,6 +12,16 @@ export type PilotReceipt = {
   transactionHash: Hash;
   logs: readonly { address: Address; topics: readonly [Hex, ...Hex[]]; data: Hex }[];
 };
+
+export async function getPilotReceipt(hash: Hash): Promise<PilotReceipt> {
+  const receipt = await getPaymentClient().getTransactionReceipt({ hash });
+  const logs: PilotReceipt["logs"][number][] = [];
+  for (const log of receipt.logs) {
+    const [first, ...rest] = log.topics;
+    if (first) logs.push({ address: log.address, data: log.data, topics: [first, ...rest] });
+  }
+  return { status: receipt.status, transactionHash: receipt.transactionHash, logs };
+}
 
 // Only a receipt read from the canonical chain client may enter this boundary.
 export function reconcilePilotReceipt(

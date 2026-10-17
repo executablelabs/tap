@@ -58,6 +58,10 @@ Receipt success requires matching `Paid` within the matching EntryPoint operatio
 log range; whole-bundle success or `isPaid` alone cannot attribute customer payment.
 `pilotPaymentCallHash` (D39) hashes the full canonical batch, including the merchant
 signature, for intent-scoped owner proofs. It is not a replacement request hash.
+`getPilotReceipt` (D41) reads a transaction receipt through the canonical payment
+client. Historical call encoding/hashing does not reject elapsed expiry; operation
+validation and signing still run settlement expiry checks. This permits restart
+reconciliation after the short merchant request has expired.
 
 ## Types 🔒 (`src/types.ts`)
 ```ts

@@ -40,7 +40,7 @@ export {
   verifyPilotOperationOwner,
 } from "./payment/pilot-operation";
 export type { PilotReceipt } from "./payment/pilot-receipt";
-export { reconcilePilotReceipt } from "./payment/pilot-receipt";
+export { getPilotReceipt, reconcilePilotReceipt } from "./payment/pilot-receipt";
 export { payWithSwap, quoteSwap } from "./payment/swap";
 export { watchPaid } from "./payment/watch";
 export { newChargeRequest } from "./request/create";

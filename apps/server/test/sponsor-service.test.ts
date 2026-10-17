@@ -27,6 +27,12 @@ import {
   parseAbi,
 } from "viem";
 import { baseSepolia } from "viem/chains";
+import { hasUnresolvedPilot } from "../../mobile/src/sponsorship/pending";
+import {
+  createPilotPaymentSession,
+  type PilotRemote,
+  type PilotRemoteStatus,
+} from "../../mobile/src/sponsorship/session";
 import { app } from "../src/app";
 import { SponsorLedger } from "../src/sponsor/ledger";
 import type { SponsorPolicy } from "../src/sponsor/policy";
@@ -208,17 +214,20 @@ async function fixture() {
     owner.signMessage({ message: pilotProofMessage(challenge, action) });
   return {
     owner,
+    url,
     account,
     signed,
     policy,
     deps,
     ledger,
+    gateway,
     service,
     post,
     challenge,
     proof,
     prepares: () => prepares,
     sends: () => sends,
+    sentSignature: () => storedOp?.signature,
     valid: (value: boolean) => {
       valid = value;
     },
@@ -251,6 +260,154 @@ test("public pilot is unavailable and cannot be enabled by request fields or arb
   expect((await app.request("/api/sponsor/eth_sendUserOperation", { method: "POST" })).status).toBe(
     404,
   );
+});
+
+function mobileRemote(f: Awaited<ReturnType<typeof fixture>>): PilotRemote {
+  async function post<T>(path: string, body: unknown): Promise<T> {
+    const response = await f.post(path, body);
+    if (!response.ok) throw new Error("Pilot remote rejected request");
+    return (await response.json()) as T;
+  }
+  return {
+    available: async () =>
+      ((await (await f.service.request("/capabilities")).json()) as { available: boolean })
+        .available,
+    challenge: (body) => post("/challenge", body),
+    prepare: (body) => post("/prepare", body),
+    submit: (body) => post("/submit", body),
+    status: (body) => post<PilotRemoteStatus>("/status", body),
+  };
+}
+
+test("mobile-to-Hono offline slice requires opt-in, persists before submission, and resumes after expiry without retry", async () => {
+  const f = await fixture();
+  const saved = new Map<string, string>();
+  const storage = {
+    getItemAsync: async (key: string) => saved.get(key) ?? null,
+    setItemAsync: async (key: string, value: string) => {
+      saved.set(key, value);
+    },
+  };
+  const options = {
+    owner: f.owner,
+    account: f.account,
+    consent: f.account,
+    audience: f.policy.audience,
+    limits: f.policy.limits,
+    context: { deployed: false, paymaster: "0x0000000000000000000000000000000000005678" as const },
+    remote: mobileRemote(f),
+    storage,
+    verify: f.deps.verify,
+    receipt: f.gateway.canonicalReceipt,
+  };
+  try {
+    const declined = createPilotPaymentSession({ ...options, consent: null });
+    expect(await declined.confirm(f.url)).toBe("unavailable");
+    expect(f.prepares()).toBe(0);
+    const session = createPilotPaymentSession(options);
+    const competing = createPilotPaymentSession(options);
+    await competing.load();
+    await Promise.all([session.confirm(f.url), competing.confirm(f.url)]);
+    expect(f.sends()).toBe(1);
+    expect(session.getState()).toBe("unknown");
+    expect(await competing.confirm(f.url)).toBe("unknown");
+    expect(f.sends()).toBe(1);
+    expect(await hasUnresolvedPilot(storage, f.owner.address)).toBe(true);
+    expect(await session.dismissResolved()).toBe(false);
+    const signature = f.sentSignature();
+    if (!signature) throw new Error("Missing owner signature");
+    expect([...saved.values()].join("\n")).not.toContain(signature);
+    configureTap({ now: () => new Date(Number(f.signed.request.expiry + 1n) * 1000) });
+    const reopened = createPilotPaymentSession(options);
+    await reopened.load();
+    expect(await reopened.confirm(f.url)).toBe("unknown");
+    expect(f.sends()).toBe(1);
+    f.include();
+    f.deps.enabled = false;
+    f.deps.policy = null;
+    expect(await reopened.checkPending()).toBe("paid");
+    expect(await reopened.dismissResolved()).toBe(true);
+    expect(await hasUnresolvedPilot(storage, f.owner.address)).toBe(false);
+    expect(f.sends()).toBe(1);
+  } finally {
+    f.ledger.close();
+  }
+});
+
+test("mobile storage failure or corrupt journal cannot authorize or replace a payment", async () => {
+  const f = await fixture();
+  const options = {
+    owner: f.owner,
+    account: f.account,
+    consent: f.account,
+    audience: f.policy.audience,
+    limits: f.policy.limits,
+    context: { deployed: false, paymaster: "0x0000000000000000000000000000000000005678" as const },
+    remote: mobileRemote(f),
+    verify: f.deps.verify,
+  };
+  try {
+    const failed = createPilotPaymentSession({
+      ...options,
+      storage: {
+        getItemAsync: async () => null,
+        setItemAsync: async () => {
+          throw new Error("locked");
+        },
+      },
+    });
+    expect(await failed.confirm(f.url)).toBe("unknown");
+    expect(f.prepares()).toBe(0);
+    for (const raw of ["{", ""]) {
+      const corrupt = createPilotPaymentSession({
+        ...options,
+        storage: { getItemAsync: async () => raw, setItemAsync: async () => {} },
+      });
+      expect(await corrupt.confirm(f.url)).toBe("unknown");
+      expect(await corrupt.dismissResolved()).toBe(false);
+    }
+    expect(f.prepares()).toBe(0);
+    expect(f.sends()).toBe(0);
+  } finally {
+    f.ledger.close();
+  }
+});
+
+test("a stale resolved controller cannot dismiss a newer pending intent", async () => {
+  const f = await fixture();
+  const saved = new Map<string, string>();
+  const storage = {
+    getItemAsync: async (key: string) => saved.get(key) ?? null,
+    setItemAsync: async (key: string, value: string) => {
+      saved.set(key, value);
+    },
+  };
+  try {
+    f.include();
+    const session = createPilotPaymentSession({
+      owner: f.owner,
+      account: f.account,
+      consent: f.account,
+      audience: f.policy.audience,
+      limits: f.policy.limits,
+      context: { deployed: false, paymaster: "0x0000000000000000000000000000000000005678" },
+      remote: mobileRemote(f),
+      storage,
+      verify: f.deps.verify,
+      receipt: f.gateway.canonicalReceipt,
+    });
+    expect(await session.confirm(f.url)).toBe("paid");
+    const entry = [...saved.entries()][0];
+    if (!entry) throw new Error("Missing journal");
+    const replacement = JSON.parse(entry[1]) as { challenge: { id: string }; status: string };
+    replacement.challenge.id = "a-newer-intent";
+    replacement.status = "unknown";
+    saved.set(entry[0], JSON.stringify(replacement));
+    expect(await session.dismissResolved()).toBe(false);
+    expect(saved.get(entry[0])).toContain("a-newer-intent");
+  } finally {
+    f.ledger.close();
+  }
 });
 
 test("authenticated prepare is replay-safe and rechecks ENS before reserving provider authorization", async () => {

@@ -1,6 +1,6 @@
 # 12 · Disabled sponsorship pilot
 
-D36–D38 record bounded **user** implementation approval, not teammate consensus or
+D36–D41 record bounded **user** implementation approval, not teammate consensus or
 approval of spending/provider/recovery settings. The candidate is pinned viem
 2.56.9, Coinbase Smart Wallet 1.1, factory nonce zero and EntryPoint 0.6 on Base
 Sepolia. It owns separate balances; the original EOA remains merchant signer and
@@ -105,6 +105,44 @@ Before production wiring, implement and independently validate that adapter and
 the complete operator policy, durable volume, account rescue and Expo acceptance.
 Challenge throttles bound expenditure but are not unique-human authentication and
 cannot eliminate denial of service by a party generating many addresses.
+
+## Mobile offline coordinator (D40–D41)
+
+Settings offers a read-only separate-account preview and remembered opt-in bound
+to owner, payer, chain and version. Global EOA balances/merchant identity are not
+switched. The UI remains visibly inactive, and no live remote transport or sponsored
+Pay option is attached. Existing direct confirmation checks the pending journal
+on focus and immediately before authorizing payment; development wallet replacement
+also fails closed if pending storage is unreadable or nonempty.
+
+`apps/mobile/src/sponsorship/session.ts` coordinates the proposed protocol through
+an explicitly injected remote interface. It requires matching opt-in and an owner
+Pay call, verifies the request, binds the server challenge to locally computed
+request/call hashes and the approved audience/account, and saves a separate
+`tap.sponsor.pending.v1.<owner>` SecureStore record **before** signing/sending a
+prepare proof. It validates every prepared operation field and repeats live
+verification immediately before owner operation signing.
+
+The journal stores the merchant request URL, immutable challenge, unsigned
+operation and distinct hashes, never an owner operation signature/private key.
+An unsigned operation/hash is saved before submission; a timeout never triggers
+resubmission or EOA fallback. Restart status recovery signs only the separate
+read-only status action and checks a canonical chain receipt through core. Even
+persisted/server `paid` assertions are not accepted without matching receipt
+evidence. Only an explicit dismissal after verified paid/reverted status writes
+the null journal marker. Opt-out does not clear it.
+
+Controllers serialize actions per owner in one JS process and re-read durable
+state before acting; a stale resolved controller cannot clear another intent.
+Unknown/corrupt/storage-failure/disappeared known journals block new work. No
+automatic expiry cleanup exists: an expired request may have settled earlier.
+SecureStore capacity/restart behavior and single-device assumptions require actual
+Android validation; a write failure prevents the next authorization/submission.
+Multi-device recovery/coordination and live transport are not implemented here.
+
+The mobile-to-Hono tests use generated test owners, mocked factory RPC, injected
+gateway/readiness/ENS and canonical-receipt fixtures. They exercise real pinned
+account encoding/signatures and the service/SQLite protocol, not live compatibility.
 
 ## Regression and remaining gates
 
