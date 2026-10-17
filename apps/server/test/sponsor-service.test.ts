@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { afterEach, expect, test } from "bun:test";
 import {
   configureTap,
+  encodePilotPayment,
   generatePrivateKey,
   getPaymentChain,
   getPilotAccount,
@@ -9,7 +10,9 @@ import {
   PILOT_ACCOUNT_STACK,
   type PilotChallenge,
   type PilotOperation,
+  type PilotOperationWire,
   type PilotReceipt,
+  parsePilotOperation,
   pilotOperationHash,
   pilotOperationWire,
   pilotProofMessage,
@@ -410,6 +413,58 @@ test("a stale resolved controller cannot dismiss a newer pending intent", async 
   }
 });
 
+test("a journal with mismatched request/execution cannot reach remote reconciliation", async () => {
+  const f = await fixture();
+  const saved = new Map<string, string>();
+  const storage = {
+    getItemAsync: async (key: string) => saved.get(key) ?? null,
+    setItemAsync: async (key: string, value: string) => {
+      saved.set(key, value);
+    },
+  };
+  const remote = mobileRemote(f);
+  const options = {
+    owner: f.owner,
+    account: f.account,
+    consent: f.account,
+    audience: f.policy.audience,
+    limits: f.policy.limits,
+    context: { deployed: false, paymaster: "0x0000000000000000000000000000000000005678" as const },
+    remote,
+    storage,
+    verify: f.deps.verify,
+    receipt: f.gateway.canonicalReceipt,
+  };
+  try {
+    await createPilotPaymentSession(options).confirm(f.url);
+    const entry = [...saved.entries()][0];
+    if (!entry) throw new Error("Missing journal");
+    const record = JSON.parse(entry[1]) as {
+      operation: PilotOperationWire;
+      userOperationHash: Hash;
+    };
+    const op = parsePilotOperation(record.operation);
+    op.callData = encodePilotPayment({
+      ...f.signed,
+      request: { ...f.signed.request, amount: f.signed.request.amount + 1n },
+    });
+    record.operation = pilotOperationWire(op);
+    record.userOperationHash = pilotOperationHash(op);
+    saved.set(entry[0], JSON.stringify(record));
+    let reads = 0;
+    remote.status = async () => {
+      reads++;
+      throw new Error("Untrusted journal must not leave device");
+    };
+    const restarted = createPilotPaymentSession(options);
+    expect(await restarted.checkPending()).toBe("unknown");
+    expect(reads).toBe(0);
+    expect(await restarted.dismissResolved()).toBe(false);
+  } finally {
+    f.ledger.close();
+  }
+});
+
 test("authenticated prepare is replay-safe and rechecks ENS before reserving provider authorization", async () => {
   const f = await fixture();
   try {
@@ -467,6 +522,17 @@ test("expired, unconfigured and unverified stacks never call the provider", asyn
     expect(
       (await f.post("/prepare", { id: ch.id, proof: await f.proof(ch, "prepare") })).status,
     ).toBe(503);
+    f.deps.policy = f.policy;
+    const { operationWei: _omitted, ...incomplete } = f.policy.limits;
+    f.deps.policy = { ...f.policy, limits: incomplete as typeof f.policy.limits };
+    expect(await (await f.service.request("/capabilities")).json()).toMatchObject({
+      available: false,
+    });
+    f.deps.policy = f.policy;
+    f.deps.policy = { ...f.policy, ownerChallengesDaily: undefined } as unknown as SponsorPolicy;
+    expect(await (await f.service.request("/capabilities")).json()).toMatchObject({
+      available: false,
+    });
     f.deps.policy = f.policy;
     f.deps.readiness.providerBinding = false;
     expect((await f.service.request("/capabilities")).status).toBe(200);

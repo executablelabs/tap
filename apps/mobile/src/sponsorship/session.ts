@@ -1,6 +1,7 @@
 import {
   type Address,
   assertPilotOperation,
+  assertPilotPayment,
   decodeRequestUrl,
   getPilotReceipt,
   type Hash,
@@ -119,12 +120,15 @@ export function createPilotPaymentSession(options: {
           throw new Error("Pending pilot identity changed");
         if (pending.operation) {
           const op = parsePilotOperation(pending.operation);
+          assertPilotPayment(signed, op.callData);
           if (
+            !same(op.sender, account.payer) ||
             op.signature !== "0x" ||
-            (pending.userOperationHash && pending.userOperationHash !== pilotOperationHash(op))
+            !hash(pending.userOperationHash) ||
+            pending.userOperationHash !== pilotOperationHash(op)
           )
             throw new Error("Invalid pending operation");
-        }
+        } else if (pending.userOperationHash !== null) throw new Error("Missing pending operation");
         state = "unknown"; // Persisted terminal assertions must be rechecked against chain evidence.
       }
       corrupt = false;

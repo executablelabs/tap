@@ -6,7 +6,7 @@ import {
   parsePilotOperation,
   pilotOperationWire,
 } from "@tap/core";
-import type { SponsorPolicy } from "./policy";
+import { type SponsorPolicy, sponsorPolicyConfigured } from "./policy";
 
 export type SponsorIntent = {
   id: string;
@@ -67,6 +67,7 @@ export class SponsorLedger {
   }
 
   recordChallengeAttempt(owner: string, policy: SponsorPolicy, now: number): void {
+    if (!sponsorPolicyConfigured(policy)) throw new Error("Pilot budgets are not configured");
     this.db
       .transaction(() => {
         const day = dayOf(now);
@@ -130,6 +131,7 @@ export class SponsorLedger {
   }
 
   reserve(id: string, policy: SponsorPolicy, now: number): boolean {
+    if (!sponsorPolicyConfigured(policy)) throw new Error("Pilot budgets are not configured");
     return this.db
       .transaction(() => {
         const intent = this.get(id);

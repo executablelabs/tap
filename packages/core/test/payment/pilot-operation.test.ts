@@ -127,6 +127,22 @@ test("operation rejects every unapproved account, deployment, nonce, paymaster a
   expect(() =>
     assertPilotOperation(f.op, f.account, f.signed, { ...limits, globalDailyWei: 0n }, f.context),
   ).toThrow();
+  for (const field of Object.keys(limits)) {
+    const incomplete: Record<string, unknown> = { ...limits };
+    delete incomplete[field];
+    expect(() =>
+      assertPilotOperation(f.op, f.account, f.signed, incomplete as PilotLimits, f.context),
+    ).toThrow("configured");
+  }
+  expect(() =>
+    assertPilotOperation(
+      { ...f.op, authorizationList: [] } as PilotOperation,
+      f.account,
+      f.signed,
+      limits,
+      f.context,
+    ),
+  ).toThrow("fields");
   configureTap({ now: () => new Date(Number(f.signed.request.expiry + 1n) * 1000) });
   expect(() => assertPilotOperation(f.op, f.account, f.signed, limits, f.context)).toThrow(
     "expired",

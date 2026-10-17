@@ -7,6 +7,41 @@ export type SponsorPolicy = {
   audience: string;
 };
 
+export function sponsorPolicyConfigured(policy: SponsorPolicy | null): boolean {
+  const fields = [
+    "operationWei",
+    "ownerDailyWei",
+    "globalDailyWei",
+    "principalUsdc",
+    "callGas",
+    "verificationGas",
+    "preVerificationGas",
+    "feePerGas",
+  ] as const;
+  try {
+    return (
+      !!policy?.limits &&
+      fields.every(
+        (field) =>
+          typeof policy.limits[field] === "bigint" &&
+          policy.limits[field] > 0n &&
+          policy.limits[field] < 1n << 256n,
+      ) &&
+      policy.limits.operationWei <= policy.limits.ownerDailyWei &&
+      policy.limits.ownerDailyWei <= policy.limits.globalDailyWei &&
+      Number.isSafeInteger(policy.ownerChallengesDaily) &&
+      policy.ownerChallengesDaily > 0 &&
+      Number.isSafeInteger(policy.globalChallengesDaily) &&
+      policy.globalChallengesDaily > 0 &&
+      typeof policy.audience === "string" &&
+      policy.audience.startsWith("https://") &&
+      new URL(policy.audience).origin === policy.audience
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Pure parser: importing the public server never reads secrets or opens a database.
 // No missing/zero/malformed spending or abuse-control value gets a permissive default.
 export function parseSponsorPolicy(

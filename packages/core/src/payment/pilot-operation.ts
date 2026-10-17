@@ -51,6 +51,16 @@ export type PilotStatus =
   | "paid"
   | "reverted";
 export type PilotOperationWire = { [K in keyof PilotOperation]: string };
+const limitFields = [
+  "operationWei",
+  "ownerDailyWei",
+  "globalDailyWei",
+  "principalUsdc",
+  "callGas",
+  "verificationGas",
+  "preVerificationGas",
+  "feePerGas",
+] as const;
 const integerFields = [
   "nonce",
   "callGasLimit",
@@ -137,7 +147,18 @@ export function assertPilotOperation(
   context: { deployed: boolean; paymaster: Address },
 ): void {
   validateSettlement(signed);
-  if (Object.values(limits).some((n) => typeof n !== "bigint" || n <= 0n))
+  if (integerFields.some((field) => typeof op[field] !== "bigint"))
+    throw new Error("Invalid pilot integer type");
+  parsePilotOperation(pilotOperationWire(op)); // Reject unsupported native gateway fields too.
+  if (
+    !limits ||
+    limitFields.some(
+      (field) =>
+        typeof limits[field] !== "bigint" || limits[field] <= 0n || limits[field] >= 1n << 256n,
+    ) ||
+    limits.operationWei > limits.ownerDailyWei ||
+    limits.ownerDailyWei > limits.globalDailyWei
+  )
     throw new Error("Pilot budgets are not configured");
   if (
     account.chainId !== PILOT_ACCOUNT_STACK.chainId ||

@@ -26,7 +26,7 @@ import {
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { SponsorIntent, SponsorLedger } from "./ledger";
-import type { SponsorPolicy } from "./policy";
+import { type SponsorPolicy, sponsorPolicyConfigured } from "./policy";
 
 // No live gateway is constructed or mounted in this slice. Implementations must
 // independently check deployed code/owner state and provider authorization binding.
@@ -96,7 +96,7 @@ export function createSponsorService(deps?: SponsorDependencies) {
       deps.readiness.device &&
       deps.gateway.chainId === PILOT_ACCOUNT_STACK.chainId &&
       same(deps.gateway.entryPoint, PILOT_ACCOUNT_STACK.entryPoint) &&
-      Object.values(deps.policy.limits).every((n) => typeof n === "bigint" && n > 0n)
+      sponsorPolicyConfigured(deps.policy)
     );
   const now = () => deps?.now?.() ?? Date.now();
   const status = (intent: SponsorIntent) => ({

@@ -75,6 +75,9 @@ test("reservations are atomic, idempotent and carry unresolved liability across 
   const ledger = new SponsorLedger(new Database(":memory:"));
   try {
     for (const id of ["a", "b", "c"]) ledger.create(testIntent(id));
+    expect(() =>
+      ledger.reserve("a", { ...testPolicy, limits: { operationWei: 10n } } as SponsorPolicy, 0),
+    ).toThrow("configured");
     const attempts = await Promise.allSettled(
       ["a", "b", "c"].map(async (id) => ledger.reserve(id, testPolicy, 0)),
     );
