@@ -3,6 +3,7 @@ import type { TamperField } from "@tap/core/testing";
 import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import type { ReactNode } from "react";
 import {
   Alert,
@@ -15,9 +16,11 @@ import {
   View,
 } from "react-native";
 import { BalanceRow } from "../src/components/BalanceRow";
+import { PilotAccountCard } from "../src/components/PilotAccountCard";
 import { copy } from "../src/copy";
 import { backOrHome } from "../src/entry-state";
 import { useSettings } from "../src/settings-store";
+import { hasUnresolvedPilot } from "../src/sponsorship/pending";
 import { theme } from "../src/theme";
 import { useWallet } from "../src/wallet/WalletProvider";
 
@@ -37,7 +40,11 @@ export default function SettingsScreen() {
   const { address, isLoading, error, resetWallet } = useWallet();
   const [settings, setSettings] = useSettings();
 
-  function confirmResetWallet() {
+  async function confirmResetWallet() {
+    if (!address || (await hasUnresolvedPilot(SecureStore, address))) {
+      Alert.alert(copy.pilot.pending, copy.pilot.resetBlocked);
+      return;
+    }
     Alert.alert("Reset wallet?", copy.entry.resetWalletWarning, [
       { text: "Cancel", style: "cancel" },
       { text: "Reset", style: "destructive", onPress: () => void resetWallet() },
@@ -71,6 +78,8 @@ export default function SettingsScreen() {
           </Text>
         ) : null}
       </Section>
+
+      {address ? <PilotAccountCard key={address} owner={address} /> : null}
 
       <Section title="Merchant">
         <Text style={styles.muted}>{copy.entry.merchantDetail}</Text>
@@ -119,7 +128,7 @@ export default function SettingsScreen() {
             <Pressable
               style={styles.destructiveButton}
               disabled={isLoading}
-              onPress={confirmResetWallet}
+              onPress={() => void confirmResetWallet()}
             >
               <Text style={styles.destructiveButtonText}>{copy.entry.resetWallet}</Text>
             </Pressable>

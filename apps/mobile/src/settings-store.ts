@@ -37,8 +37,8 @@ export function updateSettings(patch: Partial<AppSettings>): void {
   // Test helpers are session-only and cannot be enabled in a release build.
   state = { ...state, ...patch, ...(__DEV__ ? {} : { fakeChain: false, demoTamper: null }) };
   for (const listener of listeners) listener();
-  const { onboardingComplete, merchantName, transport } = state;
-  void preferencesStore.update({ onboardingComplete, merchantName, transport });
+  const { onboardingComplete, merchantName, transport, pilotConsent } = state;
+  void preferencesStore.update({ onboardingComplete, merchantName, transport, pilotConsent });
 }
 
 export function usePreferencesStatus() {

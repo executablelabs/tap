@@ -1,8 +1,9 @@
 import { formatTokenUnits, type LocalAccount } from "@tap/core";
 import { createFakeCore } from "@tap/core/testing";
 import { useTapToPay } from "@tap/react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button } from "../../src/components/Button";
 import { MerchantCard } from "../../src/components/MerchantCard";
@@ -10,6 +11,7 @@ import { StatusView } from "../../src/components/StatusView";
 import { copy } from "../../src/copy";
 import { hapticFailure, hapticSuccess } from "../../src/haptics";
 import { useSettings } from "../../src/settings-store";
+import { hasUnresolvedPilot } from "../../src/sponsorship/pending";
 import { theme } from "../../src/theme";
 import { useWallet } from "../../src/wallet/WalletProvider";
 
@@ -49,6 +51,7 @@ function ConfirmView({ account, url }: { account: LocalAccount; url: string }) {
   );
   const pay = useTapToPay({ account, core });
   const [paymentAsset, setPaymentAsset] = useState<"usdc" | "eth">("usdc");
+  const [pilotBlocked, setPilotBlocked] = useState(false);
   const submitted = useRef(false);
   const { submitUrl } = pay;
 
@@ -66,6 +69,12 @@ function ConfirmView({ account, url }: { account: LocalAccount; url: string }) {
   }, [pay.state]);
 
   const done = () => router.dismissTo("/");
+  if (pilotBlocked)
+    return (
+      <StatusView variant="pending" title={copy.pilot.pending} detail={copy.pilot.pendingDetail}>
+        <DoneButton onPress={done} />
+      </StatusView>
+    );
 
   // INV-17: the ONLY branch that may render a Pay button or reach confirm().
   // The guard narrows verify to its ok:true variant, so displayAmount and
@@ -116,7 +125,12 @@ function ConfirmView({ account, url }: { account: LocalAccount; url: string }) {
           <Button
             label={`Pay ${verified.displayAmount} in ${paymentAsset === "eth" ? "ETH" : "USDC"}`}
             disabled={payDisabled}
-            onPress={() => void pay.confirm(paymentAsset === "eth" ? ethQuote : undefined)}
+            onPress={() =>
+              void (async () => {
+                if (await hasUnresolvedPilot(SecureStore, account.address)) setPilotBlocked(true);
+                else await pay.confirm(paymentAsset === "eth" ? ethQuote : undefined);
+              })()
+            }
           />
           <Button label="Not now" variant="quiet" onPress={done} />
         </View>
@@ -185,6 +199,23 @@ export default function CustomerConfirmScreen() {
   const { url } = useLocalSearchParams<{ url: string }>();
   const { account } = useWallet();
   const router = useRouter();
+  const [pilotCheck, setPilotCheck] = useState<{
+    owner: string;
+    url: string;
+    blocked: boolean;
+  } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      if (account)
+        void hasUnresolvedPilot(SecureStore, account.address).then((blocked) => {
+          if (active) setPilotCheck({ owner: account.address, url, blocked });
+        });
+      return () => {
+        active = false;
+      };
+    }, [account, url]),
+  );
 
   if (typeof url !== "string" || !url) {
     return (
@@ -198,6 +229,14 @@ export default function CustomerConfirmScreen() {
     );
   }
   if (!account) return <StatusView variant="pending" title="Checking merchant…" />;
+  if (!pilotCheck || pilotCheck.owner !== account.address || pilotCheck.url !== url)
+    return <StatusView variant="pending" title={copy.entry.loading} />;
+  if (pilotCheck.blocked)
+    return (
+      <StatusView variant="pending" title={copy.pilot.pending} detail={copy.pilot.pendingDetail}>
+        <DoneButton onPress={() => router.dismissTo("/")} />
+      </StatusView>
+    );
 
   return <ConfirmView key={`${account.address}:${url}`} account={account} url={url} />;
 }

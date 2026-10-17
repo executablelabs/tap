@@ -42,6 +42,7 @@ describe("device preferences", () => {
       onboardingComplete: true,
       merchantName: "stall.tap.eth",
       transport: "qr",
+      pilotConsent: null,
     });
     expect(await storage.getItemAsync("tap.preferences.v1")).not.toContain("fakeChain");
   });
@@ -94,6 +95,7 @@ describe("device preferences", () => {
       onboardingComplete: false,
       merchantName: "yoyogi-market.tap.eth",
       transport: "nfc",
+      pilotConsent: null,
     });
   });
 });

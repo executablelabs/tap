@@ -69,7 +69,7 @@ an existing confirmation route mounts a fresh verification view instead of retai
 ## Wallet
 - On first launch, `secure-key.ts` generates a private key (`generatePrivateKey` from viem **via `@tap/core` re-export**, so the app never imports viem directly) and stores it in `expo-secure-store` under `tap.wallet.v1`.
 - `WalletProvider` exposes account/address, loading, an error flag, and retry. Read, validation and write failures are caught; retry never silently replaces an existing key. The key is never logged or displayed.
-- There is no login, cloud recovery, custody or account backend. The Hono server serves public pages and Android association; wallet actions use the SDK and RPC directly.
+- There is no login, cloud recovery or custody backend. The Hono server serves public pages and Android association plus an explicitly unavailable sponsorship boundary (D36–D40); existing wallet actions use the SDK and RPC directly.
 - The same device key signs merchant requests and pays customer requests. A configured merchant name is not proof that it resolves to this wallet; the live setup check and request verification remain authoritative.
 - Development Settings → "Replace development wallet" warns that funds and names stay tied to the old key. A replacement overwrites only after successful generation/storage, without deleting first; failure retains the old account. Release Settings has no destructive wallet control.
 
@@ -78,6 +78,22 @@ an existing confirmation route mounts a fresh verification view instead of retai
 - First run explains testnets, device-key custody/recovery limitations and verification before confirmation, and offers NFC or QR preference. Existing wallets without preferences get setup without wallet replacement.
 - Only a successful durable write grants completion. Writes are serialized; errors remain visible and retry saves the latest selection. Routine settings writes do not unmount active payment content.
 - Read/corrupt/unsupported-version failures offer retry or an explicit preferences-only reset. Neither recovery action deletes the wallet. Development fake-chain/tamper state is never persisted and is forced off in release builds.
+
+### Inactive sponsorship preview (D40)
+- Settings exposes an explicit read-only preview of a **separate** Coinbase 1.1
+  customer payer. No account is deployed or funded. The original EOA remains the
+  global wallet address/balance, merchant signer and Sepolia registration owner.
+- Only after preview can the user remember consent, bound to owner, payer, Base
+  Sepolia and account version in the existing preferences store. Old/malformed
+  consent is off. Consent is not provider enablement or payment authorization.
+- UI always labels this pilot inactive; no sponsored Pay option or live transport
+  is attached. Forgetting consent neither moves funds nor clears pending work.
+- A separate owner-scoped `tap.sponsor.pending.v1.*` journal guard checks on focus
+  and immediately before direct payment confirmation. Any pending/corrupt record
+  or storage read failure blocks new/fallback payments. Development key replacement
+  is likewise blocked; it cannot erase the signer needed for reconciliation.
+- See [the pilot gates](12-sponsorship-pilot.md) for disabled service composition,
+  actual proof limits, numeric policy requirements and remaining device checks.
 
 ## Screens
 

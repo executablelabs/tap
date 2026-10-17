@@ -35,6 +35,7 @@ const { EntryGate } = await import("../src/components/EntryGate");
 const { Button } = await import("../src/components/Button");
 const { WalletProvider } = await import("../src/wallet/WalletProvider");
 const { default: HomeScreen } = await import("../app/index");
+const { PilotAccountCard } = await import("../src/components/PilotAccountCard");
 const { preferencesStore, updateSettings, useSettings } = await import("../src/settings-store");
 
 beforeEach(async () => {
@@ -157,4 +158,46 @@ test("release settings cannot activate development verification or tampering", a
   expect(saved.get("tap.preferences.v1")).not.toContain("demoTamper");
   await act(async () => renderer.unmount());
   Object.assign(globalThis, { __DEV__: true });
+});
+
+test("pilot preview requires explicit separate-account consent and remains inactive", async () => {
+  const owner = "0x0000000000000000000000000000000000000001";
+  const payer = "0x0000000000000000000000000000000000000002";
+  let reads = 0;
+  let renderer: ReactTestRenderer;
+  await act(async () => {
+    renderer = create(
+      createElement(PilotAccountCard, {
+        owner,
+        derive: async () => {
+          reads++;
+          return { owner, payer, version: "1.1", chainId: 84532, initCode: "0x" };
+        },
+      }),
+    );
+  });
+  expect(reads).toBe(0);
+  expect(preferencesStore.getSnapshot().preferences.pilotConsent).toBeNull();
+  const press = async (label: string) =>
+    act(async () => {
+      renderer.root
+        .findAllByType(Button)
+        .find((button) => button.props.label === label)
+        ?.props.onPress();
+    });
+  await press(copy.pilot.preview);
+  expect(reads).toBe(1);
+  expect(JSON.stringify(renderer.toJSON())).toContain(payer);
+  expect(preferencesStore.getSnapshot().preferences.pilotConsent).toBeNull();
+  await press(copy.pilot.optIn);
+  expect(preferencesStore.getSnapshot().preferences.pilotConsent).toEqual({
+    owner,
+    payer,
+    version: "1.1",
+    chainId: 84532,
+  });
+  expect(JSON.stringify(renderer.toJSON())).toContain(copy.pilot.inactive);
+  await press(copy.pilot.optOut);
+  expect(preferencesStore.getSnapshot().preferences.pilotConsent).toBeNull();
+  await act(async () => renderer.unmount());
 });

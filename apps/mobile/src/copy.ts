@@ -142,6 +142,26 @@ const entry = {
 
 const scan = { start: "Read NFC request", cancel: "Cancel NFC scan", qr: "Scan QR code" } as const;
 
+const pilot = {
+  title: "Gas sponsorship pilot",
+  inactive: "Not enabled · Base Sepolia USDC only",
+  explanation:
+    "Tap-funded fees are being tested. You can preview a separate customer account; your existing wallet and merchant identity stay in place. Each future payment still needs your confirmation.",
+  preview: "Preview separate customer account",
+  previewFailed: "Couldn't read the pilot account address. Check your connection and try again.",
+  owner: "Existing wallet / merchant signer",
+  payer: "Separate pilot payer · independent balance",
+  noMigration:
+    "Preview does not deploy an account or move funds. Pilot recovery and provider checks are still pending; don't fund this preview account yet.",
+  optIn: "Remember this pilot account (inactive)",
+  selected: "Pilot account remembered · payments still disabled",
+  optOut: "Forget pilot selection",
+  pending: "Payment status needs checking",
+  pendingDetail:
+    "A pending pilot record or unavailable secure storage is blocking new and fallback payments. Restore storage access or reconcile the pending operation before continuing. No payment starts on this screen.",
+  resetBlocked: "Resolve the pending pilot payment before replacing this wallet.",
+} as const;
+
 export const copy = {
   errorMessages,
   getErrorMessage,
@@ -149,4 +169,5 @@ export const copy = {
   labels,
   entry,
   scan,
+  pilot,
 } as const;

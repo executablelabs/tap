@@ -1,13 +1,19 @@
+import { PILOT_ACCOUNT_STACK, type PilotAccount } from "@tap/core";
+
+export type PilotConsent = Pick<PilotAccount, "owner" | "payer" | "version" | "chainId">;
+
 export type Preferences = {
   onboardingComplete: boolean;
   merchantName: string;
   transport: "nfc" | "qr";
+  pilotConsent: PilotConsent | null;
 };
 
 export const defaultPreferences: Preferences = {
   onboardingComplete: false,
   merchantName: "yoyogi-market.tap.eth",
   transport: "nfc",
+  pilotConsent: null,
 };
 
 export type SecureStorage = {
@@ -25,6 +31,22 @@ type Snapshot = {
 
 const PREFERENCES_KEY = "tap.preferences.v1";
 
+function consent(value: unknown): PilotConsent | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as Record<string, unknown>;
+  if (
+    typeof data.owner !== "string" ||
+    typeof data.payer !== "string" ||
+    !/^0x[0-9a-fA-F]{40}$/.test(data.owner) ||
+    !/^0x[0-9a-fA-F]{40}$/.test(data.payer) ||
+    data.owner.toLowerCase() === data.payer.toLowerCase() ||
+    data.version !== PILOT_ACCOUNT_STACK.version ||
+    data.chainId !== PILOT_ACCOUNT_STACK.chainId
+  )
+    return null;
+  return data as PilotConsent;
+}
+
 function decode(raw: string | null): Preferences {
   if (raw === null) return { ...defaultPreferences };
   const value: unknown = JSON.parse(raw);
@@ -38,6 +60,7 @@ function decode(raw: string | null): Preferences {
         ? value.merchantName
         : defaultPreferences.merchantName,
     transport: "transport" in value && value.transport === "qr" ? "qr" : "nfc",
+    pilotConsent: "pilotConsent" in value ? consent(value.pilotConsent) : null,
   };
 }
 
