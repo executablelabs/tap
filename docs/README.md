@@ -35,6 +35,7 @@ Everything we decided before writing code. **Read the relevant docs before start
 | [10-build-plan.md](10-build-plan.md) | Tasks with acceptance criteria, prompts, commit sequences; add-ons; risks |
 | [11-demo-and-submission.md](11-demo-and-submission.md) | Pitch, demo script, video, Q&A, README outline, submission checklist |
 | [decisions.md](decisions.md) | Append-only decisions log |
+| [12-sponsorship-pilot.md](12-sponsorship-pilot.md) | Disabled direct-USDC sponsorship pilot, storage/budget boundaries and enablement gates |
 
 ## Keeping docs and code in sync
 - A change to a 🔒 item updates **the doc, the code and `decisions.md` in the same commit**.
