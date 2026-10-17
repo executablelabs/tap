@@ -177,6 +177,13 @@ Development builds visibly label fake-chain/tamper helpers; those controls are u
 release builds. See [mobile behavior and device acceptance](docs/07-mobile-app.md). Existing
 downloadable APKs do not acquire these source changes until a new build is published.
 
+The source also includes a **disabled sponsorship-only pilot**: a separate customer
+account preview, exact USDC approval/payment operations, authenticated sponsor
+policy/ledger code, and restart-safe pending coordination. Public sponsorship is
+unavailable; there is no live provider adapter or sponsored Pay option. Mocked
+protocol and contract-fixture tests are not live compatibility evidence. See
+[pilot scope, operator settings and enablement gates](docs/12-sponsorship-pilot.md).
+
 The downloadable `v0.0.1` APK is a signed EAS build for package `xyz.tap.demo`; its archive and
 configuration checks passed, and its SHA-256 digest is
 `983f1edf9b2c800ce53c54cbfb20e50083653a4bff7b56f47cc445dbdcaaea2e`. NFC transport was

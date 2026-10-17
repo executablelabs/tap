@@ -97,6 +97,17 @@ Every task below lists: owner · depends on · the docs to read · acceptance cr
 **Read:** `07` → Wallet, Navigation, settings, Copy. **Accept (entry updated by D35):** key created on first launch and persisted; retryable hydration; durable onboarding and transport/merchant preferences; customer home with explicit scanning and deliberate merchant entry; settings shows address + live balances; development helpers clearly confined to development builds; `copy.ts` has every string in the Copy table.
 **Status (10-17):** entry behavior and automated Bun coverage implemented. Native first-run/relaunch, back navigation, and P5/P6/P7 still require phone validation; F3 remains unchecked until device acceptance.
 
+### Sponsorship pilot follow-up (D36–D41, 10-17)
+The user authorized a bounded offline first slice on `flow/app-entry`: separate
+opt-in account, direct USDC/Base Sepolia, Tap-funded fees and owner confirmation
+for every payment. Core encoding/signatures, an authenticated sponsor protocol,
+fail-closed durable budget reservations and inactive mobile preview/journal
+plumbing have automated coverage. **Public sponsorship remains unavailable.**
+Live account/factory/EntryPoint/paymaster code checks, a reviewed provider adapter
+and authorization binding, explicit operator budgets/persistent host, rescue and
+physical P5/P6/P7 acceptance remain gates; no paid setup or live transaction is
+authorized by these implementation decisions. Details: [docs/12](12-sponsorship-pilot.md).
+
 ### F4 · Merchant screens · depends: F3 · H5–H6.5
 **Accept:** amount entry → charge → paid/expired/cancelled/error, per the `07` state table, working with fake core; setup banner wired to `checkMerchantSetup`.
 **Commits:** `feat(mobile): add amount pad and merchant amount screen` → `feat(mobile): add merchant charge screen states` → `feat(mobile): add merchant ENS setup banner`

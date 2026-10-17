@@ -214,6 +214,7 @@ Tick only when the task's acceptance criteria in `docs/10-build-plan.md` pass. W
 
 **Flow track**
 - Entry productization (D35): customer home, durable onboarding/preferences, wallet recovery and explicit scanning implemented with Bun coverage. Physical-device P5/P6/P7 validation remains pending; this does not complete F3–F6/J1 acceptance.
+- Sponsorship pilot (D36–D41): offline core/account/operation tests, durable sponsor protocol and inactive mobile preview/journal plumbing implemented. Public sponsorship is unavailable; no live adapter/transport, provider budget, account-code proof, recovery or phone acceptance is claimed. See docs/12-sponsorship-pilot.md.
 - [x] F1 NFC spike passed (or QR plan adopted)
 - [x] F2 `@tap/react-native`
 - [ ] F3 app shell

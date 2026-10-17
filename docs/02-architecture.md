@@ -47,7 +47,7 @@ The full canonical tree is in `CLAUDE.md` → *Repository layout*. At a glance:
 | `packages/core/` | `@tap/core`: the protocol SDK, pure TS | SDK track |
 | `packages/react-native/` | `@tap/react-native`: NFC transport + hooks | Flow track |
 | `apps/mobile/` | Customer wallet home, first-run setup, and merchant tools (D35) | Flow track |
-| `apps/server/` | Optional Hono server. Doesn't exist unless a decision adds it. | SDK track |
+| `apps/server/` | Hono public pages/Android association (D32) and an explicitly unavailable sponsor boundary (D36–D41) | SDK track |
 | `scripts/` | CLI jobs: ENS setup, merchant registration, ABI generation, architecture check, e2e | SDK track |
 
 Rule of thumb: **`packages/` is what other developers would install. `apps/` is what we run. `contracts/` is what lives onchain. `scripts/` is what we run once from a laptop.**
@@ -91,6 +91,17 @@ QuoterV2 for exact USDC output, the customer confirms a visible maximum, and `Ta
 SwapRouter02 before calling the original `TapPay.pay`. This preserves the merchant watcher and
 all signed-request invariants. Native ETH is one transaction; ERC-20 input adds Permit2 and may
 need a one-time token approval. Direct USDC remains the default path.
+
+The disabled sponsorship-only pilot adds a **separate** customer account using pinned
+Viem's Coinbase 1.1 / EntryPoint 0.6 candidate on Base Sepolia. It encodes exactly
+USDC approval plus the original TapPay payment in a revert-all account batch. The
+existing EOA remains the merchant signer and registration owner; no balances move.
+An injected Hono protocol authenticates owner-scoped intent, validates every call,
+reserves explicit budgets in a single-host SQLite ledger, and reconciles canonical
+operation/payment evidence. The public service has no live gateway, database or
+environment enable switch; mobile offers an inactive opt-in preview, not sponsored
+Pay. See [the implementation and remaining gates](12-sponsorship-pilot.md). Mock
+protocol/fixture tests do not establish deployed-account or provider compatibility.
 
 Typical timing: tap → verified screen ~1–2s (two ENS reads on Sepolia), confirm → both screens green ~2–4s (Base Sepolia ~2s blocks).
 
