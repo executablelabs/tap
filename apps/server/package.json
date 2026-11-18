@@ -9,10 +9,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/aws-lambda": "1.0.1",
     "hono": "4.13.9"
   },
   "devDependencies": {
     "bun-types": "1.4.2",
+    "tsdown": "0.23.1",
     "typescript": "5.9.3"
   }
 }
