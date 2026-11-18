@@ -1,0 +1,21 @@
+# Deliberately non-runnable: placeholders fail validation. No spending is approved.
+# After separate backend/state approval, copy to Pulumi.tap-dev-website.yaml.
+config:
+  tap-infrastructure:settings:
+    environment: dev
+    phase: foundation # Private asset storage only; no Lambda/CloudFront yet.
+    accountId: REPLACE_WITH_TAP_AWS_ACCOUNT_ID
+    region: us-east-1
+    hostname: REPLACE_WITH_APPROVED_TAP_HOSTNAME
+    redirectHosts: [] # Only explicitly approved aliases covered by the certificate.
+    certificateArn: REPLACE_WITH_SAME_ACCOUNT_US_EAST_1_ACM_ARN
+    monthlyBudgetUsd: 20 # Illustrative positive metadata, NOT a cap or approved budget.
+    approvalReference: REPLACE_WITH_APPROVAL_RECORD
+    memoryMiB: 256
+    reservedConcurrency: 2
+    routing: manual
+    adoption: create-only
+    # For a separately approved release, change phase to release and add BOTH fields.
+    # releaseDirectory: /ABSOLUTE/APPROVED/ARTIFACT/dist/release
+    # assetsVerifiedReleaseId: REPLACE_WITH_VERIFIED_64_HEX_MANIFEST_RELEASE_ID
+    # Upload/verify manifest assets under client/ before release/alias promotion.
