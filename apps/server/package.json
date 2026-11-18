@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
+    "build:aws": "tsdown --config tsdown.config.ts && bun scripts/build-assets.ts && bun scripts/prepare-release.ts",
+    "test:aws": "bun test ../../scripts/tap-website-aws.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
