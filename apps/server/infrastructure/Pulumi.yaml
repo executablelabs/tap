@@ -1,0 +1,8 @@
+name: tap-infrastructure
+description: Tap CloudFront / private S3 / regional streaming Hono SSR; no website VPC
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/index.ts
+# Backend and secrets provider must be selected explicitly after approval.
