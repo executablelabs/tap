@@ -21,6 +21,13 @@ const androidAssetLinks = [
 
 const app = new Hono();
 
+app.use("*", async (context, next) => {
+  await next();
+  // Never cache request-time HTML or payment-link query strings.
+  if (context.req.path !== "/styles.css" && context.req.path !== "/.well-known/assetlinks.json")
+    context.header("cache-control", "private, no-store");
+});
+
 app.use(
   "*",
   secureHeaders({
@@ -35,7 +42,10 @@ app.use(
   }),
 );
 
-app.get("/health", (context) => context.json({ status: "ok" }));
+app.get("/health", (context) => {
+  context.header("x-health-scope", "website-origin-only");
+  return context.json({ status: "ok" });
+});
 app.get("/.well-known/assetlinks.json", (context) => {
   context.header("cache-control", "public, max-age=3600");
   return context.json(androidAssetLinks);

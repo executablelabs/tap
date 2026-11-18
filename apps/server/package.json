@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
+    "build:aws": "tsdown --config tsdown.config.ts && bun scripts/build-assets.ts && bun scripts/prepare-release.ts",
+    "test:aws": "bun test ../../scripts/tap-website-aws.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/aws-lambda": "1.0.1",
     "hono": "4.13.9"
   },
   "devDependencies": {
     "bun-types": "1.4.2",
+    "tsdown": "0.23.1",
     "typescript": "5.9.3"
   }
 }

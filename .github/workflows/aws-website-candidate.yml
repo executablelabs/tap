@@ -1,0 +1,64 @@
+name: AWS website candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aws-website-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    if: github.repository == 'executablelabs/tap' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.23.4'
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
+        with:
+          version: v1.5.1
+          cache: false
+      - run: bun install --frozen-lockfile --no-env-file
+      - run: bun --no-env-file --no-install run check
+      - name: Build and smoke-test website candidate
+        working-directory: apps/server
+        env:
+          WEBSITE_STACK: tap-prod-website
+        run: |
+          bun --no-env-file --no-install run build:aws
+          bun --no-env-file --no-install run test:aws
+      - name: Verify and stage release files
+        id: verify
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          bun --no-env-file --no-install apps/server/scripts/verify-website-candidate.ts
+      - name: Upload verified candidate (not a deployment)
+        id: artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tap-website-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.verify.outputs.directory }}
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record candidate identity
+        env:
+          ARTIFACT_ID: ${{ steps.artifact.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+          RELEASE_ID: ${{ steps.verify.outputs.release_id }}
+        run: |
+          printf 'Source: `%s`\nRelease: `%s`\nArtifact ID: `%s`\nArtifact SHA-256: `%s`\n\nNo AWS deployment performed.\n' \
+            "$GITHUB_SHA" "$RELEASE_ID" "$ARTIFACT_ID" "$ARTIFACT_DIGEST" >> "$GITHUB_STEP_SUMMARY"
