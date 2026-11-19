@@ -1,0 +1,62 @@
+name: Tap Pulumi preview handoff
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful AWS website candidate run ID for this main commit
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  verify:
+    if: github.repository == 'executablelabs/tap' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      handoff: ${{ steps.candidate.outputs.handoff }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Verify candidate identity and archive digest
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          bun --no-env-file --no-install apps/server/scripts/preview-handoff.ts
+      - name: Show the candidate to the reviewer
+        env:
+          HANDOFF: ${{ steps.candidate.outputs.handoff }}
+        run: |
+          printf '## Verified candidate awaiting review\n\n```json\n%s\n```\n' "$HANDOFF" >> "$GITHUB_STEP_SUMMARY"
+
+  handoff:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: tap-website-preview
+    steps:
+      - name: Release the verified request to the Pulumi operator
+        env:
+          PREVIEW_GATE_READY: ${{ vars.TAP_WEBSITE_PREVIEW_READY }}
+          HANDOFF: ${{ needs.verify.outputs.handoff }}
+        run: |
+          test "$PREVIEW_GATE_READY" = required-review
+          test -n "$HANDOFF"
+          {
+            printf '## Preview handoff for the Tap operator\n\n'
+            printf '```json\n%s\n```\n\n' "$HANDOFF"
+            printf '%s\n' 'Verify the candidate manifest and stage its approved assets under the existing release procedure before a preview. No assets were staged, no Pulumi command ran, and nothing was deployed.'
+          } >> "$GITHUB_STEP_SUMMARY"
